@@ -11,6 +11,9 @@ import UserSettings from './pages/UserSettings';
 import ProjectList from './pages/ProjectList';
 import ProjectDetail from './pages/ProjectDetail';
 import ProjectForm from './pages/ProjectForm';
+import RequirementList from './pages/RequirementList';
+import RequirementDetail from './pages/RequirementDetail';
+import RequirementForm from './pages/RequirementForm';
 
 // 加载中组件
 const PageLoader = () => (
@@ -82,6 +85,43 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProjectForm />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 需求相关路由 */}
+          <Route 
+            path="/projects/:projectId/requirements" 
+            element={
+              <ProtectedRoute>
+                <RequirementList />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/projects/:projectId/requirements/new" 
+            element={
+              <ProtectedRoute>
+                <RequirementForm />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/requirements/:id" 
+            element={
+              <ProtectedRoute>
+                <RequirementDetail />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/requirements/:id/edit" 
+            element={
+              <ProtectedRoute>
+                <RequirementForm />
               </ProtectedRoute>
             } 
           />
