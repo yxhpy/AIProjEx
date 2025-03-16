@@ -10,7 +10,7 @@ describe('Projects API', () => {
   let testUserToken;
   let testProject;
   
-  before(async () => {
+  beforeAll(async () => {
     // 清理测试数据库
     await sequelize.sync({ force: true });
     
@@ -45,7 +45,7 @@ describe('Projects API', () => {
     });
   });
   
-  after(async () => {
+  afterAll(async () => {
     // 清理测试数据
     await ProjectMember.destroy({ where: {}, force: true });
     await Project.destroy({ where: {}, force: true });
