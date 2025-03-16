@@ -33,7 +33,8 @@ AIProjEx/
 │   ├── architecture/       # 架构文档
 │   ├── api/                # API文档
 │   ├── development/        # 开发指南
-│   └── guides/             # 用户指南
+│   ├── guides/             # 用户指南
+│   └── coding-guidelines.md # 编码指南与常见错误汇总
 ├── scripts/                # 实用脚本
 ├── .env.example            # 环境变量示例
 ├── .gitignore              # Git忽略文件
@@ -137,7 +138,9 @@ npm run dev
 - 文档规范
 - 测试规范
 
-详情请查看 `docs/development/standards.md`
+详情请查看：
+- `docs/development/standards.md`: 项目总体规范
+- `docs/coding-guidelines.md`: 编码指南与常见错误汇总（**重要：所有开发者和大模型在编码前必读**）
 
 ## 开源许可
 
