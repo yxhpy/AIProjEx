@@ -1,70 +1,50 @@
 /**
  * 日志工具
- * 使用Winston库处理应用程序的日志记录
+ * 使用winston库进行日志记录
  */
 
-const winston = require('winston');
+const { createLogger, format, transports } = require('winston');
+const { combine, timestamp, printf, colorize, json } = format;
 const path = require('path');
-const fs = require('fs');
 const config = require('../config/server');
 
-// 确保日志目录存在
-const logDir = path.dirname(path.join(__dirname, '../..', config.logging.file));
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
-}
-
-// 定义日志格式
-const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.splat(),
-  winston.format.json()
-);
-
-// 创建Winston日志记录器
-const logger = winston.createLogger({
-  level: config.logging.level,
-  format: logFormat,
-  defaultMeta: { service: 'aiprojex-api' },
-  transports: [
-    // 控制台输出
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.printf(
-          ({ level, message, timestamp, ...meta }) => 
-            `${timestamp} ${level}: ${message} ${
-              Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''
-            }`
-        )
-      )
-    }),
-    // 文件输出
-    new winston.transports.File({ 
-      filename: path.join(__dirname, '../..', config.logging.file),
-      maxsize: 10485760, // 10MB
-      maxFiles: 5,
-      tailable: true
-    }),
-    // 错误日志单独保存
-    new winston.transports.File({ 
-      filename: path.join(logDir, 'error.log'),
-      level: 'error',
-      maxsize: 10485760, // 10MB
-      maxFiles: 5
-    })
-  ],
-  // 未捕获的异常也记录到日志
-  exceptionHandlers: [
-    new winston.transports.File({ 
-      filename: path.join(logDir, 'exceptions.log'),
-      maxsize: 10485760, // 10MB
-      maxFiles: 5
-    })
-  ],
-  // 是否退出进程当出现未捕获的异常
-  exitOnError: false
+// 自定义日志格式
+const customFormat = printf(({ level, message, timestamp }) => {
+  return `${timestamp} [${level}]: ${message}`;
 });
+
+// 配置日志文件路径
+const logFilePath = path.resolve(path.join(__dirname, '../../', config.logging.file));
+
+// 创建日志记录器
+const logger = createLogger({
+  level: config.logging.level,
+  format: combine(
+    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    json()
+  ),
+  defaultMeta: { service: 'aiproj-ex-api' },
+  transports: [
+    // 写入所有日志到文件
+    new transports.File({ filename: logFilePath }),
+    
+    // 写入错误日志到单独的文件
+    new transports.File({
+      filename: path.join(path.dirname(logFilePath), 'error.log'),
+      level: 'error'
+    })
+  ]
+});
+
+// 在开发环境添加控制台输出
+if (config.env === 'development') {
+  logger.add(new transports.Console({
+    format: combine(
+      colorize(),
+      timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+      customFormat
+    )
+  }));
+}
 
 module.exports = logger; 
