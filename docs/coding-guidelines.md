@@ -440,6 +440,127 @@ try {
 }
 ```
 
+## 单元测试最佳实践
+
+### 模拟依赖
+
+1. **选择合适的模拟库**：
+   - 使用 `sinon` 进行函数和方法的模拟
+   - 使用 `mock-require` 或 `proxyquire` 进行模块依赖的模拟
+   - 避免混用不同的模拟库，以免产生冲突
+
+2. **模拟外部依赖**：
+   - 使用 `jest.mock` 时，不能在工厂函数中引用外部变量
+   - 使用 `proxyquire` 和 `mock-require` 时，需要正确处理模块缓存
+   - 在 `afterEach` 或 `afterAll` 中清理模拟，避免测试之间的干扰
+
+3. **请求和响应对象的模拟**：
+   ```javascript
+   // 正确的请求对象模拟
+   const req = {
+     headers: { authorization: 'Bearer token123' },
+     body: {},
+     params: {},
+     query: {}
+   };
+   
+   // 正确的响应对象模拟
+   const res = {
+     status: sinon.stub().returnsThis(),
+     json: sinon.stub().returnsThis(),
+     send: sinon.stub().returnsThis()
+   };
+   
+   // 正确的next函数模拟
+   const next = sinon.stub();
+   ```
+
+### 断言
+
+1. **统一使用一种断言库**：
+   - 推荐使用 `chai` 进行断言
+   - 避免混用 `chai` 和 `jest` 的断言方法
+
+2. **常用断言模式**：
+   ```javascript
+   // 检查函数是否被调用
+   expect(someFunction.calledOnce).to.be.true;
+   
+   // 检查函数调用参数
+   expect(someFunction.calledWith(arg1, arg2)).to.be.true;
+   
+   // 检查对象属性
+   expect(result).to.have.property('success', true);
+   
+   // 检查数组
+   expect(array).to.have.lengthOf(2);
+   expect(array).to.include(item);
+   ```
+
+### 异步测试
+
+1. **正确处理异步测试**：
+   - 使用 `async/await` 处理异步测试
+   - 确保在异步测试中正确捕获和断言错误
+
+2. **异步错误处理示例**：
+   ```javascript
+   it('应该处理异步错误', async () => {
+     try {
+       await functionThatThrows();
+       expect.fail('应该抛出错误');
+     } catch (error) {
+       expect(error.message).to.equal('预期的错误信息');
+     }
+   });
+   ```
+
+### 测试结构
+
+1. **测试文件组织**：
+   - 按照功能模块组织测试文件
+   - 测试文件路径应与源文件路径保持一致
+
+2. **测试用例命名**：
+   - 使用描述性的测试用例名称
+   - 测试名称应描述预期行为，而不是实现细节
+
+3. **测试用例结构**：
+   - 使用 `beforeEach` 和 `afterEach` 设置和清理测试环境
+   - 每个测试用例应该独立，不依赖于其他测试用例的执行结果
+
+## 常见问题及解决方案
+
+### 模拟问题
+
+1. **模拟函数未被调用**：
+   - 检查模拟函数是否正确创建
+   - 确保模拟函数被正确注入到被测试的代码中
+
+2. **模块依赖问题**：
+   - 使用 `delete require.cache[require.resolve('模块路径')]` 清除模块缓存
+   - 确保在测试结束后停止所有模拟 `mockRequire.stopAll()`
+
+### 异步测试问题
+
+1. **测试超时**：
+   - 增加测试超时时间 `jest.setTimeout(10000)`
+   - 检查异步操作是否正确完成
+
+2. **未捕获的异步错误**：
+   - 确保使用 `async/await` 或 `Promise.catch` 捕获异步错误
+   - 在异步测试中使用 `try/catch` 块捕获和断言错误
+
+### 数据库测试问题
+
+1. **测试数据清理**：
+   - 在每个测试用例前后清理测试数据
+   - 使用事务包装测试，确保测试数据不会影响其他测试
+
+2. **数据库连接问题**：
+   - 使用内存数据库进行测试
+   - 确保在所有测试完成后关闭数据库连接
+
 ---
 
 本文档将持续更新，添加项目中发现的新问题和解决方案。在开始新的开发任务前，请务必阅读本文档以避免重复出现已知问题。 
