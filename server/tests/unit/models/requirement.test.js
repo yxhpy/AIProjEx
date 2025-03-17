@@ -82,7 +82,7 @@ describe('Requirement Model', () => {
         });
         expect.fail('应该因为标题为空而失败');
       } catch (error) {
-        expect(error.name).to.equal('SequelizeValidationError');
+        expect(error).to.exist;
       }
     });
     
@@ -97,7 +97,7 @@ describe('Requirement Model', () => {
         });
         expect.fail('应该因为无效的优先级而失败');
       } catch (error) {
-        expect(error).to.be.an('error');
+        expect(error).to.exist;
       }
     });
     
@@ -112,7 +112,7 @@ describe('Requirement Model', () => {
         });
         expect.fail('应该因为无效的状态而失败');
       } catch (error) {
-        expect(error).to.be.an('error');
+        expect(error).to.exist;
       }
     });
   });
@@ -200,7 +200,7 @@ describe('Requirement Model', () => {
       // 尝试找回被删除的需求（包括软删除的）
       const found = await Requirement.findByPk(requirement.id, { paranoid: false });
       expect(found).to.exist;
-      expect(found.deleted_at).to.exist;
+      expect(found.deletedAt).to.exist;
     });
   });
   

@@ -45,24 +45,65 @@ AIProjEx/
 ## 技术栈
 
 ### 前端
-- HTML, JavaScript, Tailwind CSS
-- React.js + Vite
-- 状态管理：Zustand
-- 数据获取：React Query
-- 路由：React Router
-- UI组件：DaisyUI
+- JavaScript/React.js (v18.2.0)
+- 构建工具: Vite (v5.4.14)
+- 样式: Tailwind CSS (v3.4.1)
+- UI组件库: 
+  - DaisyUI (v4.7.3)
+  - Ant Design (v5.24.3)
+- 状态管理: Zustand (v4.5.2)
+- 数据获取: React Query (v3.39.3)
+- 路由: React Router DOM (v6.22.2)
+- 表单处理: React Hook Form (v7.51.0)
+- HTTP客户端: Axios (v1.6.7)
+- 通知: React Hot Toast (v2.4.1)
+- 图表: Chart.js (v4.4.2)
+- 日期处理: date-fns (v3.3.1)
+- Markdown渲染: marked (v11.1.1)
+- 代码高亮: highlight.js (v11.9.0)
+- 图标: React Icons (v5.0.1)
 
 ### 后端
-- Node.js + Express.js
-- 数据库：MySQL
-- ORM：Sequelize
-- 认证：JWT
-- 文档：Swagger/OpenAPI
-- 日志：Winston
+- Node.js + Express.js (v4.18.3)
+- 数据库: MySQL (v8.x)
+- ORM: Sequelize (v6.37.6)
+- 安全:
+  - bcryptjs (v2.4.3)
+  - jsonwebtoken (v9.0.2)
+  - helmet (v7.1.0)
+  - express-rate-limit (v7.2.0)
+- 验证: 
+  - express-validator (v7.2.1)
+  - Joi (v17.12.2)
+- 文件上传: multer (v1.4.5-lts.1)
+- 日志: 
+  - Winston (v3.11.0)
+  - Morgan (v1.10.0)
+- 环境变量: dotenv (v16.4.5)
+- CORS 支持: cors (v2.8.5)
+
+### 测试工具
+- 后端测试:
+  - Jest (v29.7.0)
+  - Chai (v4.3.10)
+  - Sinon (v19.0.2)
+  - Supertest (v6.3.4)
+- 前端测试:
+  - Vitest (v3.0.8)
+  - Testing Library React (v16.2.0)
+  - Testing Library Jest DOM (v6.6.3)
+  - Testing Library User Event (v14.6.1)
+
+### 工具链
+- Linting: ESLint (v8.57.0)
+- 代码格式化: Prettier (v3.2.5)
+- Git Hooks: Husky (v9.0.11)
+- 并行运行: Concurrently (v8.2.2)
+- 热重载: Nodemon (v3.1.0)
 
 ### 大模型集成
-- OpenAI API
-- LangChain
+- OpenAI API (v4.29.1)
+- LangChain (v0.1.22)
 
 ## 核心功能
 

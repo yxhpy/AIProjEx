@@ -1,15 +1,20 @@
 const request = require('supertest');
 const { expect } = require('chai');
+const { Project, User, ProjectMember } = require('../../../src/models');
 const app = require('../../../src/app');
-const { Project, User, ProjectMember, sequelize } = require('../../../src/models');
+const { sequelize } = require('../../config/database');
+const authHelper = require('../../helpers/authHelper');
 const jwt = require('jsonwebtoken');
 const config = require('../../../src/config');
 
 describe('Projects API', () => {
-  let testUser;
-  let testUserToken;
-  let testProject;
-  
+  let testUser, testProject, testMember, token;
+
+  beforeAll(async () => {
+    // 获取测试用户令牌
+    token = await authHelper.getTestUserToken();
+  });
+
   beforeAll(async () => {
     // 清理测试数据库
     await sequelize.sync({ force: true });
@@ -18,16 +23,9 @@ describe('Projects API', () => {
     testUser = await User.create({
       username: 'testuser',
       email: 'test@example.com',
-      password_hash: '$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa', // 'password'
+      password_hash: 'password123',
       role: 'user'
     });
-    
-    // 生成测试用户JWT令牌
-    testUserToken = jwt.sign(
-      { id: testUser.id, role: testUser.role },
-      config.jwtSecret,
-      { expiresIn: '1h' }
-    );
     
     // 创建测试项目
     testProject = await Project.create({
@@ -38,7 +36,7 @@ describe('Projects API', () => {
     });
     
     // 添加项目成员关系
-    await ProjectMember.create({
+    testMember = await ProjectMember.create({
       project_id: testProject.id,
       user_id: testUser.id,
       role: 'owner'
@@ -63,7 +61,7 @@ describe('Projects API', () => {
     it('认证用户应能获取项目列表', async () => {
       const res = await request(app)
         .get('/api/v1/projects')
-        .set('Authorization', `Bearer ${testUserToken}`);
+        .set('Authorization', `Bearer ${token}`);
       
       expect(res.status).to.equal(200);
       expect(res.body).to.have.property('data');
@@ -80,7 +78,7 @@ describe('Projects API', () => {
     it('应支持按状态过滤项目', async () => {
       const res = await request(app)
         .get('/api/v1/projects?status=planning')
-        .set('Authorization', `Bearer ${testUserToken}`);
+        .set('Authorization', `Bearer ${token}`);
       
       expect(res.status).to.equal(200);
       expect(res.body.data.projects).to.be.an('array');
@@ -96,7 +94,7 @@ describe('Projects API', () => {
     it('应返回项目详情', async () => {
       const res = await request(app)
         .get(`/api/v1/projects/${testProject.id}`)
-        .set('Authorization', `Bearer ${testUserToken}`);
+        .set('Authorization', `Bearer ${token}`);
       
       expect(res.status).to.equal(200);
       expect(res.body).to.have.property('data');
@@ -111,7 +109,7 @@ describe('Projects API', () => {
     it('请求不存在的项目应返回404', async () => {
       const res = await request(app)
         .get('/api/v1/projects/non-existent-id')
-        .set('Authorization', `Bearer ${testUserToken}`);
+        .set('Authorization', `Bearer ${token}`);
       
       expect(res.status).to.equal(404);
     });
@@ -127,7 +125,7 @@ describe('Projects API', () => {
       
       const res = await request(app)
         .post('/api/v1/projects')
-        .set('Authorization', `Bearer ${testUserToken}`)
+        .set('Authorization', `Bearer ${token}`)
         .send(projectData);
       
       expect(res.status).to.equal(201);
@@ -154,7 +152,7 @@ describe('Projects API', () => {
     it('缺少必要字段应返回400', async () => {
       const res = await request(app)
         .post('/api/v1/projects')
-        .set('Authorization', `Bearer ${testUserToken}`)
+        .set('Authorization', `Bearer ${token}`)
         .send({ description: '没有名称的项目' });
       
       expect(res.status).to.equal(400);
@@ -171,7 +169,7 @@ describe('Projects API', () => {
       
       const res = await request(app)
         .put(`/api/v1/projects/${testProject.id}`)
-        .set('Authorization', `Bearer ${testUserToken}`)
+        .set('Authorization', `Bearer ${token}`)
         .send(updateData);
       
       expect(res.status).to.equal(200);
@@ -189,12 +187,12 @@ describe('Projects API', () => {
       const anotherUser = await User.create({
         username: 'anotheruser',
         email: 'another@example.com',
-        password_hash: '$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa', // 'password'
+        password_hash: 'password123',
         role: 'user'
       });
       
       // 生成用户JWT令牌
-      const anotherUserToken = jwt.sign(
+      const anotherToken = jwt.sign(
         { id: anotherUser.id, role: anotherUser.role },
         config.jwtSecret,
         { expiresIn: '1h' }
@@ -203,7 +201,7 @@ describe('Projects API', () => {
       // 尝试删除项目
       const res = await request(app)
         .delete(`/api/v1/projects/${testProject.id}`)
-        .set('Authorization', `Bearer ${anotherUserToken}`);
+        .set('Authorization', `Bearer ${anotherToken}`);
       
       expect(res.status).to.equal(403);
     });
@@ -226,7 +224,7 @@ describe('Projects API', () => {
       // 删除项目
       const res = await request(app)
         .delete(`/api/v1/projects/${projectToDelete.id}`)
-        .set('Authorization', `Bearer ${testUserToken}`);
+        .set('Authorization', `Bearer ${token}`);
       
       expect(res.status).to.equal(200);
       expect(res.body).to.have.property('message');

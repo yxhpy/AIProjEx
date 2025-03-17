@@ -46,7 +46,7 @@ describe('Project Model', () => {
       expect(Project.getAttributes()).to.have.property('start_date');
       expect(Project.getAttributes()).to.have.property('end_date');
       expect(Project.getAttributes()).to.have.property('created_by');
-      expect(Project.getAttributes()).to.have.property('deleted_at');
+      expect(Project.getAttributes()).to.have.property('deletedAt');
     });
 
     it('should have correct associations', () => {
@@ -142,7 +142,7 @@ describe('Project Model', () => {
 
       // 验证软删除
       const deletedProject = await Project.findByPk(project.id, { paranoid: false });
-      expect(deletedProject.deleted_at).to.not.be.null;
+      expect(deletedProject.deletedAt).to.not.be.null;
       
       // 验证常规查询不返回已删除项目
       const notFoundProject = await Project.findByPk(project.id);
