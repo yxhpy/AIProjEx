@@ -28,8 +28,8 @@ exports.verifyToken = (req, res, next) => {
       return res.status(401).json({ message: '认证令牌无效或已过期' });
     }
 
-    // 将用户ID存储在请求对象中，供后续中间件使用
-    req.userId = decoded.id;
+    // 将用户信息存储在请求对象中，供后续中间件使用
+    req.user = { id: decoded.id };
     next();
   });
 };
@@ -39,7 +39,7 @@ exports.verifyToken = (req, res, next) => {
  */
 exports.isAdmin = async (req, res, next) => {
   try {
-    const user = await User.findByPk(req.userId);
+    const user = await User.findByPk(req.user.id);
     
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
@@ -63,7 +63,7 @@ exports.isAdmin = async (req, res, next) => {
 exports.isOwnerOrAdmin = (getOwnerId) => {
   return async (req, res, next) => {
     try {
-      const user = await User.findByPk(req.userId);
+      const user = await User.findByPk(req.user.id);
       
       if (!user) {
         return res.status(404).json({ message: '用户不存在' });
@@ -78,7 +78,7 @@ exports.isOwnerOrAdmin = (getOwnerId) => {
       const ownerId = await getOwnerId(req);
       
       // 如果当前用户是资源所有者，允许访问
-      if (req.userId === ownerId) {
+      if (req.user.id === ownerId) {
         return next();
       }
 

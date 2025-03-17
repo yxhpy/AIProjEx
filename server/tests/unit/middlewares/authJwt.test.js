@@ -30,7 +30,7 @@ describe('认证中间件 (authJwt.js)', () => {
     // 创建请求、响应和下一个函数的模拟
     req = {
       headers: {},
-      userId: null
+      user: null
     };
     
     res = {
@@ -89,7 +89,7 @@ describe('认证中间件 (authJwt.js)', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('当令牌有效时应设置userId并调用next', () => {
+    it('当令牌有效时应设置user对象并调用next', () => {
       // 设置有效令牌
       req.headers.authorization = 'Bearer valid-token';
       
@@ -102,7 +102,7 @@ describe('认证中间件 (authJwt.js)', () => {
       authJwt.verifyToken(req, res, next);
       
       // 验证结果
-      expect(req.userId).toBe(123);
+      expect(req.user).toEqual({ id: 123 });
       expect(next).toHaveBeenCalledTimes(1);
       expect(res.status).not.toHaveBeenCalled();
     });
@@ -110,8 +110,8 @@ describe('认证中间件 (authJwt.js)', () => {
 
   describe('isAdmin 中间件', () => {
     beforeEach(() => {
-      // 设置默认userId
-      req.userId = 123;
+      // 设置默认用户ID
+      req.user = { id: 123 };
     });
 
     it('当用户不存在时应返回404错误', async () => {
@@ -183,8 +183,8 @@ describe('认证中间件 (authJwt.js)', () => {
     let ownerMiddleware, getOwnerIdStub;
     
     beforeEach(() => {
-      // 设置默认userId
-      req.userId = 123;
+      // 设置默认用户ID
+      req.user = { id: 123 };
       
       // 创建getOwnerId函数的存根
       getOwnerIdStub = jest.fn();

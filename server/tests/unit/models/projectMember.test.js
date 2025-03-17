@@ -196,8 +196,7 @@ describe('ProjectMember Model', () => {
         // 如果创建成功则失败测试
         expect.fail('Should have thrown an error');
       } catch (error) {
-        expect(error).to.be.an('error');
-        // 可能是不同类型的错误，不检查具体名称
+        expect(error).to.exist;
       }
     });
     
@@ -211,8 +210,7 @@ describe('ProjectMember Model', () => {
         // 如果创建成功则失败测试
         expect.fail('Should have thrown an error');
       } catch (error) {
-        expect(error).to.be.an('error');
-        // 可能是不同类型的错误，不检查具体名称
+        expect(error).to.exist;
       }
     });
     

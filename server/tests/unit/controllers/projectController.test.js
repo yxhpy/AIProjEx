@@ -6,7 +6,9 @@ jest.mock('../../../src/services/projectService', () => ({
   deleteProject: jest.fn(),
   getProjectMembers: jest.fn(),
   removeProjectMember: jest.fn(),
-  addProjectMember: jest.fn()
+  addProjectMember: jest.fn(),
+  isProjectMember: jest.fn(),
+  isProjectOwner: jest.fn()
 }));
 
 jest.mock('../../../src/utils/validators', () => ({
@@ -403,12 +405,14 @@ describe('Project Controller', () => {
         { id: '2', username: '用户2', role: 'member' }
       ];
       
+      projectService.isProjectMember.mockResolvedValue(true);
       projectService.getProjectMembers.mockResolvedValue(mockMembers);
       
       // 调用控制器方法
       await projectController.getProjectMembers(req, res, next);
       
       // 验证结果
+      expect(projectService.isProjectMember).toHaveBeenCalledWith('123', '123');
       expect(projectService.getProjectMembers).toHaveBeenCalledWith('123', '123');
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(mockMembers);
@@ -419,15 +423,15 @@ describe('Project Controller', () => {
       req.params.id = '999';
       
       // 模拟projectService返回null（项目不存在）
-      projectService.getProjectMembers.mockResolvedValue(null);
+      projectService.isProjectMember.mockResolvedValue(false);
       
       // 调用控制器方法
       await projectController.getProjectMembers(req, res, next);
       
       // 验证结果
-      expect(projectService.getProjectMembers).toHaveBeenCalledWith('999', '123');
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ message: '项目不存在或您没有权限查看成员' });
+      expect(projectService.isProjectMember).toHaveBeenCalledWith('999', '123');
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: '您没有权限访问此项目成员列表' });
     });
     
     it('发生错误时应传递给错误处理中间件', async () => {
@@ -436,13 +440,13 @@ describe('Project Controller', () => {
       
       // 模拟projectService抛出错误
       const error = new Error('数据库错误');
-      projectService.getProjectMembers.mockRejectedValue(error);
+      projectService.isProjectMember.mockRejectedValue(error);
       
       // 调用控制器方法
       await projectController.getProjectMembers(req, res, next);
       
       // 验证结果
-      expect(projectService.getProjectMembers).toHaveBeenCalledWith('123', '123');
+      expect(projectService.isProjectMember).toHaveBeenCalledWith('123', '123');
       expect(next).toHaveBeenCalledWith(error);
     });
   });
@@ -452,12 +456,14 @@ describe('Project Controller', () => {
       // 准备
       req.params = { id: 'project123', userId: 'user456' };
       req.user = { id: 'admin789' };
+      projectService.isProjectOwner.mockResolvedValue(true);
       projectService.removeProjectMember.mockResolvedValue(true);
 
       // 执行
       await projectController.removeProjectMember(req, res, next);
 
       // 验证
+      expect(projectService.isProjectOwner).toHaveBeenCalledWith('project123', 'admin789');
       expect(projectService.removeProjectMember).toHaveBeenCalledWith('project123', 'user456', 'admin789');
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ message: '成员已成功移除' });
@@ -468,12 +474,15 @@ describe('Project Controller', () => {
       // 准备
       req.params = { id: 'project123', userId: 'user456' };
       req.user = { id: 'member789' };
+      projectService.isProjectOwner.mockResolvedValue(true);
       projectService.removeProjectMember.mockResolvedValue(false);
 
       // 执行
       await projectController.removeProjectMember(req, res, next);
 
       // 验证
+      expect(projectService.isProjectOwner).toHaveBeenCalledWith('project123', 'member789');
+      expect(projectService.removeProjectMember).toHaveBeenCalledWith('project123', 'user456', 'member789');
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({ message: '项目不存在、成员不存在或您没有权限移除成员' });
       expect(next).not.toHaveBeenCalled();
@@ -484,6 +493,7 @@ describe('Project Controller', () => {
       req.params = { id: 'project123', userId: 'user456' };
       req.user = { id: 'admin789' };
       const error = new Error('数据库错误');
+      projectService.isProjectOwner.mockResolvedValue(true);
       projectService.removeProjectMember.mockRejectedValue(error);
 
       // 执行
@@ -509,12 +519,14 @@ describe('Project Controller', () => {
         userId: 'user456', 
         role: 'developer' 
       };
+      projectService.isProjectOwner.mockResolvedValue(true);
       projectService.addProjectMember.mockResolvedValue(mockResult);
 
       // 执行
       await projectController.addProjectMember(req, res, next);
 
       // 验证
+      expect(projectService.isProjectOwner).toHaveBeenCalledWith('project123', 'admin789');
       expect(projectService.addProjectMember).toHaveBeenCalledWith(
         'project123', 'user456', 'developer', 'admin789'
       );
@@ -555,12 +567,14 @@ describe('Project Controller', () => {
       req.params = { id: 'project123' };
       req.body = { userId: 'user456', role: 'developer' };
       req.user = { id: 'member789' };
-      projectService.addProjectMember.mockResolvedValue(false);
+      projectService.isProjectOwner.mockResolvedValue(true);
+      projectService.addProjectMember.mockResolvedValue(null);
 
       // 执行
       await projectController.addProjectMember(req, res, next);
 
       // 验证
+      expect(projectService.isProjectOwner).toHaveBeenCalledWith('project123', 'member789');
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({ 
         message: '项目不存在、您没有权限添加成员或用户已存在于项目中' 
@@ -574,6 +588,7 @@ describe('Project Controller', () => {
       req.body = { userId: 'user456', role: 'developer' };
       req.user = { id: 'admin789' };
       const error = new Error('数据库错误');
+      projectService.isProjectOwner.mockResolvedValue(true);
       projectService.addProjectMember.mockRejectedValue(error);
 
       // 执行

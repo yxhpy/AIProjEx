@@ -1,8 +1,12 @@
 const request = require('supertest');
 const { expect } = require('chai');
 const jwt = require('jsonwebtoken');
-const app = require('../../../src/app');
-const { sequelize, User, Project, ProjectMember } = require('../../../src/models');
+const app = require('../../testApp');
+const { sequelize } = require('../../config/database');
+const { setupTestDatabase } = require('../../setup');
+const UserModel = require('../../../src/models/User');
+const ProjectModel = require('../../../src/models/Project');
+const ProjectMemberModel = require('../../../src/models/ProjectMember');
 
 describe('Project API', () => {
   let testUser;
@@ -10,8 +14,25 @@ describe('Project API', () => {
   let testProject;
   let userToken;
   let user2Token;
+  let User, Project, ProjectMember;
   
   beforeAll(async () => {
+    // 设置测试数据库
+    await setupTestDatabase();
+    
+    // 初始化模型
+    User = UserModel(sequelize);
+    Project = ProjectModel(sequelize);
+    ProjectMember = ProjectMemberModel(sequelize);
+
+    // 设置关联关系
+    const models = { User, Project, ProjectMember };
+    Object.values(models).forEach(model => {
+      if (model.associate) {
+        model.associate(models);
+      }
+    });
+    
     // 同步数据库
     await sequelize.sync({ force: true });
     

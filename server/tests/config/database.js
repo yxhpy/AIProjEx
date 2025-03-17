@@ -1,11 +1,9 @@
 /**
  * 测试环境数据库配置文件
- * 使用SQLite内存数据库进行测试
+ * 使用SQLite内存数据库进行集成测试
  */
 
 const { Sequelize } = require('sequelize');
-// 使用console代替logger
-// const logger = require('../../../src/utils/logger');
 
 // 创建Sequelize实例，使用SQLite内存数据库
 const sequelize = new Sequelize('sqlite::memory:', {

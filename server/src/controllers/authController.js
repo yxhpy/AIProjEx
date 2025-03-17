@@ -112,7 +112,7 @@ exports.login = async (req, res, next) => {
 // 获取当前用户信息
 exports.getCurrentUser = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    const userId = req.user.id;
 
     // 查找用户
     const user = await User.findByPk(userId);
@@ -140,7 +140,7 @@ exports.getCurrentUser = async (req, res, next) => {
 // 更新当前用户信息
 exports.updateCurrentUser = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    const userId = req.user.id;
     const { username, email, avatar_url } = req.body;
 
     // 查找用户
@@ -200,7 +200,7 @@ exports.updateCurrentUser = async (req, res, next) => {
 // 更新密码
 exports.updatePassword = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    const userId = req.user.id;
     const { currentPassword, newPassword } = req.body;
 
     // 查找用户

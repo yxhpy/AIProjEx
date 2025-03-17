@@ -32,7 +32,7 @@ describe('Auth Controller', () => {
     // 创建请求和响应对象
     req = {
       body: {},
-      userId: 1
+      user: { id: 1 }
     };
     res = {
       status: jest.fn().mockReturnThis(),
@@ -324,8 +324,8 @@ describe('Auth Controller', () => {
 
   describe('getCurrentUser', () => {
     it('应该返回当前登录用户的信息', async () => {
-      // 设置请求和userId
-      req.userId = 1;
+      // 设置请求和user
+      req.user = { id: 1 };
 
       // 模拟用户存在
       User.findByPk.mockResolvedValue({
@@ -359,7 +359,7 @@ describe('Auth Controller', () => {
 
     it('当用户不存在时应返回404错误', async () => {
       // 设置请求和userId
-      req.userId = 999;
+      req.user = { id: 999 };
 
       // 模拟用户不存在
       User.findByPk.mockResolvedValue(null);
@@ -377,7 +377,7 @@ describe('Auth Controller', () => {
 
     it('当数据库操作失败时应调用next并传递错误', async () => {
       // 设置请求和userId
-      req.userId = 1;
+      req.user = { id: 1 };
 
       // 模拟数据库错误
       const dbError = new Error('数据库错误');
@@ -396,7 +396,7 @@ describe('Auth Controller', () => {
   describe('updateCurrentUser', () => {
     it('应该成功更新用户信息', async () => {
       // 设置请求体和userId
-      req.userId = 1;
+      req.user = { id: 1 };
       req.body = {
         username: 'updateduser',
         email: 'updated@example.com',
@@ -443,7 +443,7 @@ describe('Auth Controller', () => {
 
     it('当用户名已存在时应返回409错误', async () => {
       // 设置请求体和userId
-      req.userId = 1;
+      req.user = { id: 1 };
       req.body = {
         username: 'existinguser',
         email: 'updated@example.com'
@@ -479,7 +479,7 @@ describe('Auth Controller', () => {
 
     it('当邮箱格式无效时应返回400错误', async () => {
       // 设置请求体和userId
-      req.userId = 1;
+      req.user = { id: 1 };
       req.body = {
         email: 'invalid-email'
       };
@@ -505,7 +505,7 @@ describe('Auth Controller', () => {
 
     it('当邮箱已被注册时应返回400错误', async () => {
       // 设置请求体和userId
-      req.userId = 1;
+      req.user = { id: 1 };
       req.body = {
         email: 'existing@example.com'
       };
@@ -538,7 +538,7 @@ describe('Auth Controller', () => {
 
     it('当用户不存在时应返回404错误', async () => {
       // 设置请求体和userId
-      req.userId = 999;
+      req.user = { id: 999 };
       req.body = {
         username: 'updateduser',
         email: 'updated@example.com',
@@ -561,7 +561,7 @@ describe('Auth Controller', () => {
 
     it('当更新操作失败时应调用next并传递错误', async () => {
       // 设置请求体和userId
-      req.userId = 1;
+      req.user = { id: 1 };
       req.body = {
         username: 'updateduser',
         email: 'updated@example.com',
@@ -595,7 +595,7 @@ describe('Auth Controller', () => {
   describe('updatePassword', () => {
     it('应该成功更新用户密码', async () => {
       // 设置请求体和userId
-      req.userId = 1;
+      req.user = { id: 1 };
       req.body = {
         currentPassword: 'OldPassword123',
         newPassword: 'NewPassword123'
@@ -623,7 +623,7 @@ describe('Auth Controller', () => {
 
     it('当用户不存在时应返回404错误', async () => {
       // 设置请求体和userId
-      req.userId = 999;
+      req.user = { id: 999 };
       req.body = {
         currentPassword: 'OldPassword123',
         newPassword: 'NewPassword123'
@@ -645,7 +645,7 @@ describe('Auth Controller', () => {
 
     it('当当前密码不正确时应返回401错误', async () => {
       // 设置请求体和userId
-      req.userId = 1;
+      req.user = { id: 1 };
       req.body = {
         currentPassword: 'WrongPassword123',
         newPassword: 'NewPassword123'
@@ -674,7 +674,7 @@ describe('Auth Controller', () => {
 
     it('当新密码强度不够时应返回400错误', async () => {
       // 设置请求体和userId
-      req.userId = 1;
+      req.user = { id: 1 };
       req.body = {
         currentPassword: 'OldPassword123',
         newPassword: 'weak'
@@ -703,7 +703,7 @@ describe('Auth Controller', () => {
 
     it('当更新密码时出现错误应调用next并传递错误', async () => {
       // 设置请求体和userId
-      req.userId = 1;
+      req.user = { id: 1 };
       req.body = {
         currentPassword: 'OldPassword123',
         newPassword: 'NewPassword123'
