@@ -1,6 +1,5 @@
-const { expect } = require('chai');
-const sinon = require('sinon');
-const jwt = require('jsonwebtoken');
+// 移除Chai和Sinon依赖
+jest.mock('jsonwebtoken');
 
 // 模拟依赖
 jest.mock('../../../src/models', () => ({
@@ -13,12 +12,19 @@ jest.mock('../../../src/config/auth.config', () => ({
   jwtSecret: 'test-secret'
 }));
 
+// 模拟logger
+jest.mock('../../../src/utils/logger', () => ({
+  error: jest.fn()
+}));
+
 // 导入被测试的模块
 const authJwt = require('../../../src/middlewares/authJwt');
 const { User } = require('../../../src/models');
+const logger = require('../../../src/utils/logger');
+const jwt = require('jsonwebtoken');
 
 describe('认证中间件 (authJwt.js)', () => {
-  let req, res, next, jwtVerifyStub, consoleErrorStub;
+  let req, res, next;
 
   beforeEach(() => {
     // 创建请求、响应和下一个函数的模拟
@@ -28,26 +34,14 @@ describe('认证中间件 (authJwt.js)', () => {
     };
     
     res = {
-      status: sinon.stub().returnsThis(),
-      json: sinon.stub().returnsThis()
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis()
     };
     
-    next = sinon.stub();
-    
-    // 模拟jwt.verify
-    jwtVerifyStub = sinon.stub(jwt, 'verify');
-    
-    // 模拟console.error
-    consoleErrorStub = sinon.stub(console, 'error');
+    next = jest.fn();
     
     // 重置所有模拟
     jest.clearAllMocks();
-  });
-
-  afterEach(() => {
-    // 在每个测试后恢复存根
-    jwtVerifyStub.restore();
-    consoleErrorStub.restore();
   });
 
   describe('verifyToken 中间件', () => {
@@ -59,9 +53,9 @@ describe('认证中间件 (authJwt.js)', () => {
       authJwt.verifyToken(req, res, next);
       
       // 验证结果
-      expect(res.status.calledWith(401)).to.be.true;
-      expect(res.json.calledWith({ message: '未提供认证令牌' })).to.be.true;
-      expect(next.called).to.be.false;
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({ message: '未提供认证令牌' });
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('当令牌格式无效时应返回401错误', () => {
@@ -72,9 +66,9 @@ describe('认证中间件 (authJwt.js)', () => {
       authJwt.verifyToken(req, res, next);
       
       // 验证结果
-      expect(res.status.calledWith(401)).to.be.true;
-      expect(res.json.calledWith({ message: '认证令牌格式无效' })).to.be.true;
-      expect(next.called).to.be.false;
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({ message: '认证令牌格式无效' });
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('当令牌无效时应返回401错误', () => {
@@ -82,7 +76,7 @@ describe('认证中间件 (authJwt.js)', () => {
       req.headers.authorization = 'Bearer invalid-token';
       
       // 模拟jwt.verify回调错误
-      jwtVerifyStub.callsFake((token, secret, callback) => {
+      jwt.verify.mockImplementation((token, secret, callback) => {
         callback(new Error('无效令牌'), null);
       });
       
@@ -90,9 +84,9 @@ describe('认证中间件 (authJwt.js)', () => {
       authJwt.verifyToken(req, res, next);
       
       // 验证结果
-      expect(res.status.calledWith(401)).to.be.true;
-      expect(res.json.calledWith({ message: '认证令牌无效或已过期' })).to.be.true;
-      expect(next.called).to.be.false;
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({ message: '认证令牌无效或已过期' });
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('当令牌有效时应设置userId并调用next', () => {
@@ -100,7 +94,7 @@ describe('认证中间件 (authJwt.js)', () => {
       req.headers.authorization = 'Bearer valid-token';
       
       // 模拟jwt.verify回调成功
-      jwtVerifyStub.callsFake((token, secret, callback) => {
+      jwt.verify.mockImplementation((token, secret, callback) => {
         callback(null, { id: 123 });
       });
       
@@ -108,9 +102,9 @@ describe('认证中间件 (authJwt.js)', () => {
       authJwt.verifyToken(req, res, next);
       
       // 验证结果
-      expect(req.userId).to.equal(123);
-      expect(next.calledOnce).to.be.true;
-      expect(res.status.called).to.be.false;
+      expect(req.userId).toBe(123);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
@@ -128,11 +122,11 @@ describe('认证中间件 (authJwt.js)', () => {
       await authJwt.isAdmin(req, res, next);
       
       // 验证结果
-      expect(User.findByPk.mock.calls.length).to.be.greaterThan(0);
-      expect(User.findByPk.mock.calls[0][0]).to.equal(123);
-      expect(res.status.calledWith(404)).to.be.true;
-      expect(res.json.calledWith({ message: '用户不存在' })).to.be.true;
-      expect(next.called).to.be.false;
+      expect(User.findByPk).toHaveBeenCalled();
+      expect(User.findByPk).toHaveBeenCalledWith(123);
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: '用户不存在' });
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('当用户不是管理员时应返回403错误', async () => {
@@ -145,11 +139,11 @@ describe('认证中间件 (authJwt.js)', () => {
       await authJwt.isAdmin(req, res, next);
       
       // 验证结果
-      expect(User.findByPk.mock.calls.length).to.be.greaterThan(0);
-      expect(User.findByPk.mock.calls[0][0]).to.equal(123);
-      expect(res.status.calledWith(403)).to.be.true;
-      expect(res.json.calledWith({ message: '需要管理员权限' })).to.be.true;
-      expect(next.called).to.be.false;
+      expect(User.findByPk).toHaveBeenCalled();
+      expect(User.findByPk).toHaveBeenCalledWith(123);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: '需要管理员权限' });
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('当用户是管理员时应调用next', async () => {
@@ -162,10 +156,10 @@ describe('认证中间件 (authJwt.js)', () => {
       await authJwt.isAdmin(req, res, next);
       
       // 验证结果
-      expect(User.findByPk.mock.calls.length).to.be.greaterThan(0);
-      expect(User.findByPk.mock.calls[0][0]).to.equal(123);
-      expect(next.calledOnce).to.be.true;
-      expect(res.status.called).to.be.false;
+      expect(User.findByPk).toHaveBeenCalled();
+      expect(User.findByPk).toHaveBeenCalledWith(123);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.status).not.toHaveBeenCalled();
     });
 
     it('当查询出错时应返回500错误', async () => {
@@ -176,12 +170,12 @@ describe('认证中间件 (authJwt.js)', () => {
       await authJwt.isAdmin(req, res, next);
       
       // 验证结果
-      expect(User.findByPk.mock.calls.length).to.be.greaterThan(0);
-      expect(User.findByPk.mock.calls[0][0]).to.equal(123);
-      expect(consoleErrorStub.called).to.be.true;
-      expect(res.status.calledWith(500)).to.be.true;
-      expect(res.json.calledWith({ message: '服务器错误，请稍后再试' })).to.be.true;
-      expect(next.called).to.be.false;
+      expect(User.findByPk).toHaveBeenCalled();
+      expect(User.findByPk).toHaveBeenCalledWith(123);
+      expect(logger.error).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ message: '服务器错误，请稍后再试' });
+      expect(next).not.toHaveBeenCalled();
     });
   });
 
@@ -207,12 +201,12 @@ describe('认证中间件 (authJwt.js)', () => {
       await ownerMiddleware(req, res, next);
       
       // 验证结果
-      expect(User.findByPk.mock.calls.length).to.be.greaterThan(0);
-      expect(User.findByPk.mock.calls[0][0]).to.equal(123);
-      expect(res.status.calledWith(404)).to.be.true;
-      expect(res.json.calledWith({ message: '用户不存在' })).to.be.true;
-      expect(next.called).to.be.false;
-      expect(getOwnerIdStub.mock.calls.length).to.equal(0);
+      expect(User.findByPk).toHaveBeenCalled();
+      expect(User.findByPk).toHaveBeenCalledWith(123);
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: '用户不存在' });
+      expect(next).not.toHaveBeenCalled();
+      expect(getOwnerIdStub).not.toHaveBeenCalled();
     });
 
     it('当用户是管理员时应直接调用next', async () => {
@@ -225,11 +219,11 @@ describe('认证中间件 (authJwt.js)', () => {
       await ownerMiddleware(req, res, next);
       
       // 验证结果
-      expect(User.findByPk.mock.calls.length).to.be.greaterThan(0);
-      expect(User.findByPk.mock.calls[0][0]).to.equal(123);
-      expect(next.calledOnce).to.be.true;
-      expect(getOwnerIdStub.mock.calls.length).to.equal(0); // 不应该调用getOwnerId
-      expect(res.status.called).to.be.false;
+      expect(User.findByPk).toHaveBeenCalled();
+      expect(User.findByPk).toHaveBeenCalledWith(123);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(getOwnerIdStub).not.toHaveBeenCalled(); // 不应该调用getOwnerId
+      expect(res.status).not.toHaveBeenCalled();
     });
 
     it('当用户是资源所有者时应调用next', async () => {
@@ -246,15 +240,13 @@ describe('认证中间件 (authJwt.js)', () => {
       await ownerMiddleware(req, res, next);
       
       // 验证结果
-      expect(User.findByPk.mock.calls.length).to.be.greaterThan(0);
-      expect(User.findByPk.mock.calls[0][0]).to.equal(123);
-      expect(getOwnerIdStub.mock.calls.length).to.be.greaterThan(0);
-      expect(getOwnerIdStub.mock.calls[0][0]).to.equal(req);
-      expect(next.calledOnce).to.be.true;
-      expect(res.status.called).to.be.false;
+      expect(User.findByPk).toHaveBeenCalled();
+      expect(getOwnerIdStub).toHaveBeenCalledWith(req);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.status).not.toHaveBeenCalled();
     });
 
-    it('当用户既不是管理员也不是所有者时应返回403错误', async () => {
+    it('当用户不是资源所有者时应返回403错误', async () => {
       // 模拟用户存在但不是管理员
       User.findByPk.mockResolvedValue({
         role: 'user',
@@ -268,29 +260,33 @@ describe('认证中间件 (authJwt.js)', () => {
       await ownerMiddleware(req, res, next);
       
       // 验证结果
-      expect(User.findByPk.mock.calls.length).to.be.greaterThan(0);
-      expect(User.findByPk.mock.calls[0][0]).to.equal(123);
-      expect(getOwnerIdStub.mock.calls.length).to.be.greaterThan(0);
-      expect(getOwnerIdStub.mock.calls[0][0]).to.equal(req);
-      expect(res.status.calledWith(403)).to.be.true;
-      expect(res.json.calledWith({ message: '没有权限访问此资源' })).to.be.true;
-      expect(next.called).to.be.false;
+      expect(User.findByPk).toHaveBeenCalled();
+      expect(getOwnerIdStub).toHaveBeenCalledWith(req);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: '没有权限访问此资源' });
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it('当查询出错时应返回500错误', async () => {
-      // 模拟数据库错误
-      User.findByPk.mockRejectedValue(new Error('数据库错误'));
+    it('当getOwnerId函数抛出错误时应返回500错误', async () => {
+      // 模拟用户存在但不是管理员
+      User.findByPk.mockResolvedValue({
+        role: 'user',
+        id: 123
+      });
+      
+      // 模拟getOwnerId抛出错误
+      getOwnerIdStub.mockRejectedValue(new Error('获取所有者ID失败'));
       
       // 执行中间件
       await ownerMiddleware(req, res, next);
       
       // 验证结果
-      expect(User.findByPk.mock.calls.length).to.be.greaterThan(0);
-      expect(User.findByPk.mock.calls[0][0]).to.equal(123);
-      expect(consoleErrorStub.called).to.be.true;
-      expect(res.status.calledWith(500)).to.be.true;
-      expect(res.json.calledWith({ message: '服务器错误，请稍后再试' })).to.be.true;
-      expect(next.called).to.be.false;
+      expect(User.findByPk).toHaveBeenCalled();
+      expect(getOwnerIdStub).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ message: '服务器错误，请稍后再试' });
+      expect(next).not.toHaveBeenCalled();
     });
   });
 }); 

@@ -14,6 +14,9 @@ import ProjectForm from './pages/ProjectForm';
 import RequirementList from './pages/RequirementList';
 import RequirementDetail from './pages/RequirementDetail';
 import RequirementForm from './pages/RequirementForm';
+import TaskList from './pages/TaskList';
+import TaskDetail from './pages/TaskDetail';
+import TaskForm from './pages/TaskForm';
 
 // 加载中组件
 const PageLoader = () => (
@@ -126,13 +129,66 @@ function App() {
             } 
           />
           
+          {/* 任务相关路由 */}
           <Route 
             path="/tasks" 
             element={
               <ProtectedRoute>
-                <div className="min-h-screen flex items-center justify-center">
-                  <h1 className="text-2xl font-bold text-gray-700">任务功能开发中...</h1>
-                </div>
+                <TaskList />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/projects/:projectId/tasks" 
+            element={
+              <ProtectedRoute>
+                <TaskList />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/requirements/:requirementId/tasks" 
+            element={
+              <ProtectedRoute>
+                <TaskList />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/tasks/:id" 
+            element={
+              <ProtectedRoute>
+                <TaskDetail />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/tasks/:id/edit" 
+            element={
+              <ProtectedRoute>
+                <TaskForm />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/projects/:projectId/tasks/new" 
+            element={
+              <ProtectedRoute>
+                <TaskForm />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/requirements/:requirementId/tasks/new" 
+            element={
+              <ProtectedRoute>
+                <TaskForm />
               </ProtectedRoute>
             } 
           />

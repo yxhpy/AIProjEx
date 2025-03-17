@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '../ui/Badge';
 import requirementService from '../../services/requirementService';
+import { CheckSquare } from 'lucide-react';
 
 /**
  * 需求详情组件
@@ -108,7 +109,7 @@ const RequirementDetail = ({ requirement, onDelete }) => {
       </div>
       
       {/* 验收标准 */}
-      <div className="p-6">
+      <div className="p-6 border-b border-gray-100">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">验收标准</h2>
         <div className="prose max-w-none">
           {requirement.acceptance_criteria ? (
@@ -116,6 +117,28 @@ const RequirementDetail = ({ requirement, onDelete }) => {
           ) : (
             <p className="text-gray-500 italic">暂无验收标准</p>
           )}
+        </div>
+      </div>
+      
+      {/* 相关任务 */}
+      <div className="p-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">相关任务</h2>
+        <div className="flex flex-col space-y-3">
+          <Link
+            to={`/requirements/${requirement.id}/tasks`}
+            className="inline-flex items-center px-4 py-2 bg-green-100 text-green-600 rounded-md hover:bg-green-200 transition-colors w-fit"
+          >
+            <CheckSquare className="mr-2 h-4 w-4" />
+            查看任务列表
+          </Link>
+          
+          <Link
+            to={`/requirements/${requirement.id}/tasks/new`}
+            className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 transition-colors w-fit"
+          >
+            <span className="mr-2">+</span>
+            创建新任务
+          </Link>
         </div>
       </div>
     </div>

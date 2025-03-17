@@ -2,9 +2,12 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const config = require('../config/auth.config');
 const { validateEmail, validatePassword } = require('../utils/validators');
+const bcrypt = require('bcryptjs');
+const { ApiError } = require('../utils/errorHandler');
+const logger = require('../utils/logger');
 
 // 注册新用户
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
   try {
     const { username, email, password } = req.body;
 
@@ -23,20 +26,23 @@ exports.register = async (req, res) => {
     // 检查用户名是否已存在
     const existingUsername = await User.findOne({ where: { username } });
     if (existingUsername) {
-      return res.status(400).json({ message: '用户名已被使用' });
+      throw new ApiError(409, '用户名已存在');
     }
 
     // 检查邮箱是否已存在
     const existingEmail = await User.findOne({ where: { email } });
     if (existingEmail) {
-      return res.status(400).json({ message: '邮箱已被注册' });
+      throw new ApiError(409, '邮箱已被注册');
     }
 
     // 创建新用户
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const user = await User.create({
       username,
       email,
-      password_hash: password, // 密码会在模型钩子中自动加密
+      password_hash: hashedPassword,
       role: 'user'
     });
 
@@ -58,26 +64,26 @@ exports.register = async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('注册失败:', error);
-    res.status(500).json({ message: '服务器错误，请稍后再试' });
+    logger.error('注册失败', { error });
+    next(error);
   }
 };
 
 // 用户登录
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
     // 查找用户
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(401).json({ message: '邮箱或密码不正确' });
+      throw new ApiError(401, '邮箱或密码不正确');
     }
 
     // 验证密码
     const passwordIsValid = await user.validatePassword(password);
     if (!passwordIsValid) {
-      return res.status(401).json({ message: '邮箱或密码不正确' });
+      throw new ApiError(401, '邮箱或密码不正确');
     }
 
     // 生成JWT令牌
@@ -98,20 +104,20 @@ exports.login = async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('登录失败:', error);
-    res.status(500).json({ message: '服务器错误，请稍后再试' });
+    logger.error('登录失败', { error });
+    next(error);
   }
 };
 
 // 获取当前用户信息
-exports.getCurrentUser = async (req, res) => {
+exports.getCurrentUser = async (req, res, next) => {
   try {
     const userId = req.userId;
 
     // 查找用户
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).json({ message: '用户不存在' });
+      throw new ApiError(404, '用户不存在');
     }
 
     res.status(200).json({
@@ -126,13 +132,13 @@ exports.getCurrentUser = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取用户信息失败:', error);
-    res.status(500).json({ message: '服务器错误，请稍后再试' });
+    logger.error('获取用户信息失败', { error });
+    next(error);
   }
 };
 
 // 更新当前用户信息
-exports.updateCurrentUser = async (req, res) => {
+exports.updateCurrentUser = async (req, res, next) => {
   try {
     const userId = req.userId;
     const { username, email, avatar_url } = req.body;
@@ -140,14 +146,14 @@ exports.updateCurrentUser = async (req, res) => {
     // 查找用户
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).json({ message: '用户不存在' });
+      throw new ApiError(404, '用户不存在');
     }
 
     // 检查是否有其他用户使用相同的用户名（如果提供了新用户名）
     if (username && username !== user.username) {
       const existingUsername = await User.findOne({ where: { username } });
       if (existingUsername) {
-        return res.status(400).json({ message: '用户名已被使用' });
+        throw new ApiError(409, '用户名已被使用');
       }
       user.username = username;
     }
@@ -186,13 +192,13 @@ exports.updateCurrentUser = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('更新用户信息失败:', error);
-    res.status(500).json({ message: '服务器错误，请稍后再试' });
+    logger.error('更新用户信息失败', { error });
+    next(error);
   }
 };
 
 // 更新密码
-exports.updatePassword = async (req, res) => {
+exports.updatePassword = async (req, res, next) => {
   try {
     const userId = req.userId;
     const { currentPassword, newPassword } = req.body;
@@ -200,13 +206,13 @@ exports.updatePassword = async (req, res) => {
     // 查找用户
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).json({ message: '用户不存在' });
+      throw new ApiError(404, '用户不存在');
     }
 
     // 验证当前密码
     const passwordIsValid = await user.validatePassword(currentPassword);
     if (!passwordIsValid) {
-      return res.status(401).json({ message: '当前密码不正确' });
+      throw new ApiError(401, '当前密码不正确');
     }
 
     // 验证新密码强度
@@ -222,7 +228,7 @@ exports.updatePassword = async (req, res) => {
 
     res.status(200).json({ message: '密码更新成功' });
   } catch (error) {
-    console.error('更新密码失败:', error);
-    res.status(500).json({ message: '服务器错误，请稍后再试' });
+    logger.error('更新密码失败', { error });
+    next(error);
   }
 }; 

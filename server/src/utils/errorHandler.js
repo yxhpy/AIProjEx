@@ -17,6 +17,8 @@ class ApiError extends Error {
   }
 }
 
+const logger = require('./logger');
+
 /**
  * 错误处理中间件
  * @param {Error} err - 错误对象
@@ -42,7 +44,7 @@ const errorHandler = (err, req, res, next) => {
   }
   
   // 记录错误日志
-  console.error(`[错误] ${err.name}: ${err.message}\n`, err.stack);
+  logger.error(`[错误] ${err.name}: ${err.message}`, { stack: err.stack });
   
   // 生产环境下不返回实际错误堆栈
   const response = {

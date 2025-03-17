@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const config = require('../config/auth.config');
+const logger = require('../utils/logger');
 
 /**
  * 验证JWT令牌中间件
@@ -50,7 +51,7 @@ exports.isAdmin = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('检查管理员权限失败:', error);
+    logger.error('检查管理员权限失败:', { error });
     res.status(500).json({ message: '服务器错误，请稍后再试' });
   }
 };
@@ -84,7 +85,7 @@ exports.isOwnerOrAdmin = (getOwnerId) => {
       // 既不是管理员也不是所有者，拒绝访问
       return res.status(403).json({ message: '没有权限访问此资源' });
     } catch (error) {
-      console.error('检查所有者或管理员权限失败:', error);
+      logger.error('检查所有者或管理员权限失败:', { error });
       res.status(500).json({ message: '服务器错误，请稍后再试' });
     }
   };

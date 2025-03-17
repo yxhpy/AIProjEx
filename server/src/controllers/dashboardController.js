@@ -1,5 +1,6 @@
 const { Project, User, ProjectMember } = require('../models');
 const { Op } = require('sequelize');
+const logger = require('../utils/logger');
 
 /**
  * 获取仪表盘统计信息
@@ -29,7 +30,7 @@ exports.getDashboardStats = async (req, res) => {
       totalPrototypes: prototypeCount
     });
   } catch (error) {
-    console.error('Error getting dashboard stats:', error);
+    logger.error('获取仪表盘统计信息失败', { error });
     res.status(500).json({ message: '获取仪表盘统计信息失败' });
   }
 };
@@ -78,7 +79,7 @@ exports.getProjectStats = async (req, res) => {
       teamMembers
     });
   } catch (error) {
-    console.error('Error getting project stats:', error);
+    logger.error('获取项目统计信息失败', { error });
     res.status(500).json({ message: '获取项目统计信息失败' });
   }
 };
@@ -118,7 +119,7 @@ exports.getProjectActivities = async (req, res) => {
     
     res.json(activities);
   } catch (error) {
-    console.error('Error getting project activities:', error);
+    logger.error('获取项目活动记录失败', { error });
     res.status(500).json({ message: '获取项目活动记录失败' });
   }
 };
@@ -139,7 +140,7 @@ exports.getTaskDistribution = async (req, res) => {
     
     res.json(distribution);
   } catch (error) {
-    console.error('Error getting task distribution:', error);
+    logger.error('获取任务分布统计失败', { error });
     res.status(500).json({ message: '获取任务分布统计失败' });
   }
 };
@@ -186,7 +187,7 @@ exports.getTeamActivities = async (req, res) => {
     
     res.json(members);
   } catch (error) {
-    console.error('Error getting team activities:', error);
+    logger.error('获取团队活动统计失败', { error });
     res.status(500).json({ message: '获取团队活动统计失败' });
   }
 }; 

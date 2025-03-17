@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { 
   getProjectById, 
@@ -17,7 +17,9 @@ import {
   Users, 
   Plus,
   X,
-  AlertTriangle
+  AlertTriangle,
+  FileText,
+  CheckSquare
 } from 'lucide-react';
 
 // 项目状态映射
@@ -287,20 +289,20 @@ const ProjectDetail = () => {
             <div className="mt-6">
               <h3 className="text-gray-700 font-medium mb-3">项目功能</h3>
               <div className="space-y-2">
-                <button
-                  onClick={() => navigate(`/projects/${project.id}/requirements`)}
-                  className="w-full text-left px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors flex items-center"
+                <Link
+                  to={`/projects/${project.id}/requirements`}
+                  className="w-full text-left px-4 py-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 flex items-center"
                 >
-                  <span className="mr-2">📋</span>
-                  查看项目需求
-                </button>
-                <button
-                  onClick={() => navigate(`/tasks`)}
-                  className="w-full text-left px-4 py-2 bg-purple-50 text-purple-600 rounded-md hover:bg-purple-100 transition-colors flex items-center"
+                  <FileText className="mr-1 h-4 w-4" />
+                  需求列表
+                </Link>
+                <Link
+                  to={`/projects/${project.id}/tasks`}
+                  className="w-full text-left px-4 py-2 bg-green-100 text-green-600 rounded-md hover:bg-green-200 flex items-center"
                 >
-                  <span className="mr-2">✅</span>
-                  查看项目任务
-                </button>
+                  <CheckSquare className="mr-1 h-4 w-4" />
+                  任务列表
+                </Link>
               </div>
             </div>
           </div>

@@ -125,7 +125,7 @@ exports.createProject = async (projectData, userId) => {
     await transaction.commit();
     
     // 返回包含创建者信息的项目
-    return this.getProjectById(project.id, userId);
+    return exports.getProjectById(project.id, userId);
   } catch (error) {
     await transaction.rollback();
     throw error;
@@ -159,7 +159,7 @@ exports.updateProject = async (projectId, projectData, userId) => {
   });
   
   // 返回更新后的项目
-  return this.getProjectById(projectId, userId);
+  return exports.getProjectById(projectId, userId);
 };
 
 /**
@@ -330,4 +330,69 @@ exports.removeProjectMember = async (projectId, memberUserId, currentUserId) => 
   });
   
   return result > 0;
+};
+
+/**
+ * 更新项目成员角色
+ * @param {string} projectId - 项目ID
+ * @param {string} memberUserId - 要更新的成员ID
+ * @param {Object} updateData - 更新数据，包含role字段
+ * @param {string} currentUserId - 当前用户ID
+ * @returns {Object|null} - 更新后的成员或null
+ */
+exports.updateProjectMember = async (projectId, memberUserId, updateData, currentUserId) => {
+  // 检查当前用户是否有权限更新成员
+  const currentMember = await ProjectMember.findOne({
+    where: {
+      project_id: projectId,
+      user_id: currentUserId,
+      role: {
+        [Op.in]: ['owner', 'admin']
+      }
+    }
+  });
+  
+  if (!currentMember) return null;
+  
+  // 查找要更新的成员
+  const memberToUpdate = await ProjectMember.findOne({
+    where: {
+      project_id: projectId,
+      user_id: memberUserId
+    }
+  });
+  
+  if (!memberToUpdate) return null;
+  
+  // 不能更改owner角色
+  if (memberToUpdate.role === 'owner') return null;
+  
+  // 只有owner可以更改admin角色
+  if (
+    memberToUpdate.role === 'admin' && 
+    currentMember.role !== 'owner'
+  ) {
+    return null;
+  }
+  
+  // 更新成员
+  const updatedMember = await memberToUpdate.update(updateData);
+  
+  // 获取成员关联的用户信息
+  const user = await User.findByPk(memberUserId);
+  
+  // 安全地获取更新后的成员数据
+  const memberData = typeof updatedMember.toJSON === 'function' 
+    ? updatedMember.toJSON() 
+    : updatedMember;
+  
+  return {
+    ...memberData,
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      avatar_url: user.avatar_url
+    }
+  };
 }; 

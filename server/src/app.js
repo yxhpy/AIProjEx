@@ -22,6 +22,7 @@ const authRoutes = require('./routes/authRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const requirementRoutes = require('./routes/requirementRoutes');
+const taskRoutes = require('./routes/taskRoutes');
 
 // 创建Express应用
 const app = express();
@@ -68,6 +69,7 @@ app.get(`${config.apiPrefix}/health`, (req, res) => {
 app.use(`${config.apiPrefix}/auth`, authRoutes);
 app.use(`${config.apiPrefix}/projects`, projectRoutes);
 app.use(`${config.apiPrefix}/dashboard`, dashboardRoutes);
+app.use(`${config.apiPrefix}/tasks`, taskRoutes);
 app.use(`${config.apiPrefix}`, requirementRoutes);
 
 // 404处理
