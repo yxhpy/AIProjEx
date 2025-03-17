@@ -3,7 +3,6 @@ description:
 globs: 
 alwaysApply: true
 ---
-Always respond in 中文
 # 项目管理
 - 使用github issues统一管理项目进度
 - 开始编写代码前使用issues获取最新进度和代办
