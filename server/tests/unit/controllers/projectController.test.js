@@ -1,14 +1,26 @@
-const { expect } = require('chai');
-const sinon = require('sinon');
+jest.mock('../../../src/services/projectService', () => ({
+  getProjects: jest.fn(),
+  getProjectById: jest.fn(),
+  createProject: jest.fn(),
+  updateProject: jest.fn(),
+  deleteProject: jest.fn(),
+  getProjectMembers: jest.fn(),
+  removeProjectMember: jest.fn(),
+  addProjectMember: jest.fn()
+}));
+
+jest.mock('../../../src/utils/validators', () => ({
+  validateProject: jest.fn()
+}));
+
 const projectController = require('../../../src/controllers/projectController');
 const projectService = require('../../../src/services/projectService');
-const { Project, User, ProjectMember } = require('../../../src/models');
+const { validateProject } = require('../../../src/utils/validators');
 
 describe('Project Controller', () => {
   let req;
   let res;
   let next;
-  let serviceStub;
   
   beforeEach(() => {
     // 模拟请求对象
@@ -16,22 +28,123 @@ describe('Project Controller', () => {
       params: {},
       body: {},
       query: {},
-      user: { id: '123e4567-e89b-12d3-a456-426614174000' }
+      user: { id: '123' }
     };
     
     // 模拟响应对象
     res = {
-      status: sinon.stub().returnsThis(),
-      json: sinon.spy()
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
     };
     
     // 模拟next函数
-    next = sinon.spy();
+    next = jest.fn();
+    
+    jest.clearAllMocks();
   });
   
-  afterEach(() => {
-    // 清理所有stub/spy等
-    sinon.restore();
+  describe('getProjects', () => {
+    it('应该返回所有项目', async () => {
+      // 模拟查询参数
+      req.query = { page: '1', limit: '10', sort: 'createdAt', order: 'desc' };
+      
+      // 模拟projectService
+      const mockProjects = [
+        { id: '1', name: '项目1', status: 'active' },
+        { id: '2', name: '项目2', status: 'planning' }
+      ];
+      
+      const result = {
+        projects: mockProjects,
+        total: 2,
+        page: 1,
+        limit: 10,
+        totalPages: 1
+      };
+      
+      projectService.getProjects.mockResolvedValue(result);
+      
+      // 调用控制器方法
+      await projectController.getProjects(req, res, next);
+      
+      // 验证结果
+      expect(projectService.getProjects).toHaveBeenCalledWith({
+        userId: '123',
+        page: 1,
+        limit: 10,
+        status: undefined,
+        sort: 'createdAt',
+        order: 'desc'
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(result);
+    });
+    
+    it('发生错误时应传递给错误处理中间件', async () => {
+      // 模拟projectService抛出错误
+      const error = new Error('数据库错误');
+      projectService.getProjects.mockRejectedValue(error);
+      
+      // 调用控制器方法
+      await projectController.getProjects(req, res, next);
+      
+      // 验证结果
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+  
+  describe('getProjectById', () => {
+    it('应该返回指定ID的项目', async () => {
+      // 设置项目ID
+      req.params.id = '123';
+      
+      // 模拟projectService
+      const mockProject = {
+        id: '123',
+        name: '测试项目',
+        description: '这是一个测试项目'
+      };
+      
+      projectService.getProjectById.mockResolvedValue(mockProject);
+      
+      // 调用控制器方法
+      await projectController.getProjectById(req, res, next);
+      
+      // 验证结果
+      expect(projectService.getProjectById).toHaveBeenCalledWith('123', '123');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(mockProject);
+    });
+    
+    it('项目不存在时应返回404错误', async () => {
+      // 设置请求参数
+      req.params.id = '999';
+      
+      // 模拟projectService返回null（项目不存在）
+      projectService.getProjectById.mockResolvedValue(null);
+      
+      // 调用控制器方法
+      await projectController.getProjectById(req, res, next);
+      
+      // 验证结果
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: '项目不存在或您没有权限访问' });
+    });
+    
+    it('发生错误时应传递给错误处理中间件', async () => {
+      // 设置请求参数
+      req.params.id = '123';
+      
+      // 模拟projectService抛出错误
+      const error = new Error('数据库错误');
+      projectService.getProjectById.mockRejectedValue(error);
+      
+      // 调用控制器方法
+      await projectController.getProjectById(req, res, next);
+      
+      // 验证结果
+      expect(next).toHaveBeenCalledWith(error);
+    });
   });
   
   describe('createProject', () => {
@@ -43,154 +156,79 @@ describe('Project Controller', () => {
         status: 'planning'
       };
       
-      // 模拟项目服务
-      const newProject = {
-        id: '456e7890-e89b-12d3-a456-426614174000',
+      // 模拟验证通过
+      validateProject.mockReturnValue({
+        error: null,
+        value: req.body
+      });
+      
+      // 模拟projectService
+      const mockProject = {
+        id: '456',
         name: '测试项目',
         description: '这是一个测试项目',
         status: 'planning',
-        owner_id: req.user.id
+        owner_id: '123'
       };
       
-      serviceStub = sinon.stub(projectService, 'createProject').resolves(newProject);
+      projectService.createProject.mockResolvedValue(mockProject);
       
       // 调用控制器方法
       await projectController.createProject(req, res, next);
       
       // 验证结果
-      expect(serviceStub.calledOnce).to.be.true;
-      expect(res.status.calledWith(201)).to.be.true;
-      expect(res.json.called).to.be.true;
-      expect(res.json.args[0][0]).to.deep.equal(newProject);
+      expect(validateProject).toHaveBeenCalledWith(req.body);
+      expect(projectService.createProject).toHaveBeenCalledWith(req.body, '123');
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith(mockProject);
     });
     
-    it('用户不存在时应返回404错误', async () => {
+    it('验证失败时应返回400错误', async () => {
       // 准备请求数据
       req.body = {
-        name: '测试项目',
-        description: '这是一个测试项目'
+        description: '缺少项目名称'
       };
       
-      // 模拟服务抛出错误
-      const error = new Error('用户不存在');
-      error.statusCode = 404;
-      serviceStub = sinon.stub(projectService, 'createProject').rejects(error);
-      
-      // 调用控制器方法
-      await projectController.createProject(req, res, next);
-      
-      // 验证结果
-      expect(next.calledOnce).to.be.true;
-      expect(next.args[0][0]).to.equal(error);
-    });
-    
-    it('发生错误时应传递给错误处理中间件', async () => {
-      // 准备请求数据
-      req.body = {
-        name: '测试项目',
-        description: '这是一个测试项目'
-      };
-      
-      // 模拟User.findByPk
-      sinon.stub(User, 'findByPk').resolves({
-        id: req.user.id,
-        username: 'testuser'
+      // 模拟验证失败
+      validateProject.mockReturnValue({
+        error: { details: [{ message: '项目名称不能为空' }] },
+        value: req.body
       });
       
-      // 模拟Project.create抛出错误
+      // 调用控制器方法
+      await projectController.createProject(req, res, next);
+      
+      // 验证结果
+      expect(validateProject).toHaveBeenCalledWith(req.body);
+      expect(projectService.createProject).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ message: '项目名称不能为空' });
+    });
+    
+    it('发生错误时应传递给错误处理中间件', async () => {
+      // 准备请求数据
+      req.body = {
+        name: '测试项目',
+        description: '这是一个测试项目'
+      };
+      
+      // 模拟验证通过
+      validateProject.mockReturnValue({
+        error: null,
+        value: req.body
+      });
+      
+      // 模拟projectService抛出错误
       const error = new Error('数据库错误');
-      sinon.stub(Project, 'create').rejects(error);
+      projectService.createProject.mockRejectedValue(error);
       
       // 调用控制器方法
       await projectController.createProject(req, res, next);
       
       // 验证结果
-      expect(next.calledWith(error)).to.be.true;
-    });
-  });
-  
-  describe('getProjects', () => {
-    it('应该返回所有项目', async () => {
-      // 模拟查询参数
-      req.query = { page: '1', limit: '10' };
-      
-      // 模拟项目服务
-      const projects = [
-        { id: '1', name: '项目1', status: 'active' },
-        { id: '2', name: '项目2', status: 'planning' }
-      ];
-      
-      const result = {
-        projects,
-        total: 2,
-        page: 1,
-        limit: 10,
-        totalPages: 1
-      };
-      
-      serviceStub = sinon.stub(projectService, 'getProjects').resolves(result);
-      
-      // 调用控制器方法
-      await projectController.getProjects(req, res, next);
-      
-      // 验证结果
-      expect(serviceStub.calledOnce).to.be.true;
-      expect(res.status.calledWith(200)).to.be.true;
-      expect(res.json.called).to.be.true;
-      expect(res.json.args[0][0]).to.deep.equal(result);
-    });
-    
-    it('发生错误时应传递给错误处理中间件', async () => {
-      // 模拟Project.findAll抛出错误
-      const error = new Error('数据库错误');
-      sinon.stub(Project, 'findAll').rejects(error);
-      
-      // 调用控制器方法
-      await projectController.getProjects(req, res, next);
-      
-      // 验证结果
-      expect(next.calledWith(error)).to.be.true;
-    });
-  });
-  
-  describe('getProjectById', () => {
-    it('应该返回指定ID的项目', async () => {
-      // 设置项目ID
-      req.params.id = '123';
-      
-      // 模拟项目服务
-      const project = {
-        id: '123',
-        name: '测试项目',
-        description: '这是一个测试项目'
-      };
-      
-      serviceStub = sinon.stub(projectService, 'getProjectById').resolves(project);
-      
-      // 调用控制器方法
-      await projectController.getProjectById(req, res, next);
-      
-      // 验证结果
-      expect(serviceStub.calledOnce).to.be.true;
-      expect(res.status.calledWith(200)).to.be.true;
-      expect(res.json.called).to.be.true;
-      expect(res.json.args[0][0]).to.deep.equal(project);
-    });
-    
-    it('项目不存在时应返回404错误', async () => {
-      // 设置请求参数
-      req.params.id = '123e4567-e89b-12d3-a456-426614174000';
-      
-      // 模拟Project.findByPk返回null（项目不存在）
-      sinon.stub(Project, 'findByPk').resolves(null);
-      
-      // 调用控制器方法
-      await projectController.getProjectById(req, res, next);
-      
-      // 验证结果
-      expect(res.status.calledWith(404)).to.be.true;
-      expect(res.json.args[0][0]).to.have.property('message');
-      expect(res.json.args[0][0].message).to.include('不存在');
+      expect(validateProject).toHaveBeenCalledWith(req.body);
+      expect(projectService.createProject).toHaveBeenCalledWith(req.body, '123');
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
   
@@ -203,61 +241,104 @@ describe('Project Controller', () => {
         description: '更新后的项目描述'
       };
       
-      // 模拟项目服务
-      const updatedProject = {
+      // 模拟验证通过
+      validateProject.mockReturnValue({
+        error: null,
+        value: req.body
+      });
+      
+      // 模拟projectService
+      const mockProject = {
         id: '123',
         name: '更新后的项目名称',
         description: '更新后的项目描述'
       };
       
-      serviceStub = sinon.stub(projectService, 'updateProject').resolves(updatedProject);
+      projectService.updateProject.mockResolvedValue(mockProject);
       
       // 调用控制器方法
       await projectController.updateProject(req, res, next);
       
       // 验证结果
-      expect(serviceStub.calledOnce).to.be.true;
-      expect(res.status.calledWith(200)).to.be.true;
-      expect(res.json.called).to.be.true;
-      expect(res.json.args[0][0]).to.deep.equal(updatedProject);
+      expect(validateProject).toHaveBeenCalledWith(req.body, true);
+      expect(projectService.updateProject).toHaveBeenCalledWith('123', req.body, '123');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(mockProject);
     });
     
-    it('项目不存在时应返回404错误', async () => {
-      // 设置请求参数
-      req.params.id = '123e4567-e89b-12d3-a456-426614174000';
-      req.body = { name: '更新的项目名称' };
-      
-      // 模拟Project.findByPk返回null（项目不存在）
-      sinon.stub(Project, 'findByPk').resolves(null);
-      
-      // 调用控制器方法
-      await projectController.updateProject(req, res, next);
-      
-      // 验证结果
-      expect(res.status.calledWith(404)).to.be.true;
-      expect(res.json.args[0][0]).to.have.property('message');
-      expect(res.json.args[0][0].message).to.include('不存在');
-    });
-    
-    it('非项目所有者应返回403错误', async () => {
+    it('验证失败时应返回400错误', async () => {
       // 设置项目ID和请求体
       req.params.id = '123';
       req.body = {
-        name: '更新后的项目名称',
-        description: '更新后的项目描述'
+        status: '无效状态'
       };
       
-      // 模拟服务抛出权限错误
-      const error = new Error('没有权限更新项目');
-      error.statusCode = 403;
-      serviceStub = sinon.stub(projectService, 'updateProject').rejects(error);
+      // 模拟验证失败
+      validateProject.mockReturnValue({
+        error: { details: [{ message: '项目状态无效' }] },
+        value: req.body
+      });
       
       // 调用控制器方法
       await projectController.updateProject(req, res, next);
       
       // 验证结果
-      expect(next.calledOnce).to.be.true;
-      expect(next.args[0][0]).to.equal(error);
+      expect(validateProject).toHaveBeenCalledWith(req.body, true);
+      expect(projectService.updateProject).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ message: '项目状态无效' });
+    });
+    
+    it('项目不存在时应返回404错误', async () => {
+      // 设置项目ID和请求体
+      req.params.id = '999';
+      req.body = {
+        name: '更新后的项目名称'
+      };
+      
+      // 模拟验证通过
+      validateProject.mockReturnValue({
+        error: null,
+        value: req.body
+      });
+      
+      // 模拟projectService返回null（项目不存在）
+      projectService.updateProject.mockResolvedValue(null);
+      
+      // 调用控制器方法
+      await projectController.updateProject(req, res, next);
+      
+      // 验证结果
+      expect(validateProject).toHaveBeenCalledWith(req.body, true);
+      expect(projectService.updateProject).toHaveBeenCalledWith('999', req.body, '123');
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: '项目不存在或您没有权限修改' });
+    });
+    
+    it('发生错误时应传递给错误处理中间件', async () => {
+      // 设置项目ID和请求体
+      req.params.id = '123';
+      req.body = {
+        name: '更新后的项目名称'
+      };
+      
+      // 模拟验证通过
+      validateProject.mockReturnValue({
+        error: null,
+        value: req.body
+      });
+      
+      // 模拟projectService抛出错误
+      const error = new Error('数据库错误');
+      projectService.updateProject.mockRejectedValue(error);
+      
+      // 调用控制器方法
+      await projectController.updateProject(req, res, next);
+      
+      // 验证结果
+      expect(validateProject).toHaveBeenCalledWith(req.body, true);
+      expect(projectService.updateProject).toHaveBeenCalledWith('123', req.body, '123');
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
   
@@ -266,208 +347,242 @@ describe('Project Controller', () => {
       // 设置项目ID
       req.params.id = '123';
       
-      // 模拟项目服务
-      serviceStub = sinon.stub(projectService, 'deleteProject').resolves(true);
+      // 模拟projectService
+      projectService.deleteProject.mockResolvedValue(true);
       
       // 调用控制器方法
       await projectController.deleteProject(req, res, next);
       
       // 验证结果
-      expect(serviceStub.calledOnce).to.be.true;
-      expect(res.status.calledWith(200)).to.be.true;
-      expect(res.json.args[0][0]).to.have.property('message');
-      expect(res.json.args[0][0].message).to.include('项目已成功删除');
+      expect(projectService.deleteProject).toHaveBeenCalledWith('123', '123');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ message: '项目已成功删除' });
     });
     
     it('项目不存在时应返回404错误', async () => {
-      // 设置请求参数
-      req.params.id = '123e4567-e89b-12d3-a456-426614174000';
-      
-      // 模拟Project.findByPk返回null（项目不存在）
-      sinon.stub(Project, 'findByPk').resolves(null);
-      
-      // 调用控制器方法
-      await projectController.deleteProject(req, res, next);
-      
-      // 验证结果
-      expect(res.status.calledWith(404)).to.be.true;
-      expect(res.json.args[0][0]).to.have.property('message');
-      expect(res.json.args[0][0].message).to.include('不存在');
-    });
-    
-    it('非项目所有者应返回403错误', async () => {
       // 设置项目ID
-      req.params.id = '123';
+      req.params.id = '999';
       
-      // 模拟服务抛出权限错误
-      const error = new Error('没有权限删除项目');
-      error.statusCode = 403;
-      serviceStub = sinon.stub(projectService, 'deleteProject').rejects(error);
+      // 模拟projectService返回false（项目不存在）
+      projectService.deleteProject.mockResolvedValue(false);
       
       // 调用控制器方法
       await projectController.deleteProject(req, res, next);
       
       // 验证结果
-      expect(next.calledOnce).to.be.true;
-      expect(next.args[0][0]).to.equal(error);
-    });
-  });
-  
-  describe('getUserProjectsById', () => {
-    it('应该返回用户参与的所有项目', async () => {
-      // 设置用户ID参数
-      req.params.userId = req.user.id;
-      
-      // 模拟项目服务
-      const projects = [
-        { id: '1', name: '项目1', role: 'owner' },
-        { id: '2', name: '项目2', role: 'member' }
-      ];
-      
-      const result = {
-        projects,
-        total: 2,
-        page: 1,
-        limit: 10,
-        totalPages: 1
-      };
-      
-      serviceStub = sinon.stub(projectService, 'getProjects').resolves(result);
-      
-      // 调用控制器方法
-      await projectController.getProjects(req, res, next);
-      
-      // 验证结果
-      expect(serviceStub.calledOnce).to.be.true;
-      expect(res.status.calledWith(200)).to.be.true;
-      expect(res.json.called).to.be.true;
-      expect(res.json.args[0][0]).to.deep.equal(result);
+      expect(projectService.deleteProject).toHaveBeenCalledWith('999', '123');
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: '项目不存在或您没有权限删除' });
     });
     
     it('发生错误时应传递给错误处理中间件', async () => {
-      // 模拟error
-      const error = new Error('测试错误');
-      serviceStub = sinon.stub(projectService, 'getProjects').rejects(error);
+      // 设置项目ID
+      req.params.id = '123';
+      
+      // 模拟projectService抛出错误
+      const error = new Error('数据库错误');
+      projectService.deleteProject.mockRejectedValue(error);
       
       // 调用控制器方法
-      await projectController.getProjects(req, res, next);
+      await projectController.deleteProject(req, res, next);
       
       // 验证结果
-      expect(next.calledWith(error)).to.be.true;
+      expect(projectService.deleteProject).toHaveBeenCalledWith('123', '123');
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
   
-  describe('addProjectMember', () => {
-    it('应该成功添加项目成员', async () => {
-      // 设置项目ID和请求体
+  describe('getProjectMembers', () => {
+    it('应该返回项目成员列表', async () => {
+      // 设置项目ID
       req.params.id = '123';
-      req.body = {
-        userId: '456',
-        role: 'member'
-      };
       
-      // 模拟项目服务
-      const member = {
-        id: '789',
-        project_id: '123',
-        user_id: '456',
-        role: 'member'
-      };
+      // 模拟projectService
+      const mockMembers = [
+        { id: '1', username: '用户1', role: 'admin' },
+        { id: '2', username: '用户2', role: 'member' }
+      ];
       
-      serviceStub = sinon.stub(projectService, 'addProjectMember').resolves(member);
+      projectService.getProjectMembers.mockResolvedValue(mockMembers);
       
       // 调用控制器方法
-      await projectController.addProjectMember(req, res, next);
+      await projectController.getProjectMembers(req, res, next);
       
       // 验证结果
-      expect(serviceStub.calledOnce).to.be.true;
-      expect(res.status.calledWith(201)).to.be.true;
-      expect(res.json.called).to.be.true;
-      expect(res.json.args[0][0]).to.deep.equal(member);
+      expect(projectService.getProjectMembers).toHaveBeenCalledWith('123', '123');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(mockMembers);
     });
     
     it('项目不存在时应返回404错误', async () => {
-      // 设置项目ID和请求体
-      req.params.id = '123';
-      req.body = {
-        userId: '456',
-        role: 'member'
-      };
+      // 设置项目ID
+      req.params.id = '999';
       
-      // 模拟服务抛出错误
-      const error = new Error('项目不存在');
-      error.statusCode = 404;
-      serviceStub = sinon.stub(projectService, 'addProjectMember').rejects(error);
+      // 模拟projectService返回null（项目不存在）
+      projectService.getProjectMembers.mockResolvedValue(null);
       
       // 调用控制器方法
-      await projectController.addProjectMember(req, res, next);
+      await projectController.getProjectMembers(req, res, next);
       
       // 验证结果
-      expect(next.calledOnce).to.be.true;
-      expect(next.args[0][0]).to.equal(error);
+      expect(projectService.getProjectMembers).toHaveBeenCalledWith('999', '123');
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: '项目不存在或您没有权限查看成员' });
     });
     
-    it('非项目所有者应返回403错误', async () => {
-      // 设置项目ID和请求体
+    it('发生错误时应传递给错误处理中间件', async () => {
+      // 设置项目ID
       req.params.id = '123';
-      req.body = {
-        userId: '456',
-        role: 'member'
-      };
       
-      // 模拟服务抛出权限错误
-      const error = new Error('没有权限添加成员');
-      error.statusCode = 403;
-      serviceStub = sinon.stub(projectService, 'addProjectMember').rejects(error);
+      // 模拟projectService抛出错误
+      const error = new Error('数据库错误');
+      projectService.getProjectMembers.mockRejectedValue(error);
       
       // 调用控制器方法
-      await projectController.addProjectMember(req, res, next);
+      await projectController.getProjectMembers(req, res, next);
       
       // 验证结果
-      expect(next.calledOnce).to.be.true;
-      expect(next.args[0][0]).to.equal(error);
+      expect(projectService.getProjectMembers).toHaveBeenCalledWith('123', '123');
+      expect(next).toHaveBeenCalledWith(error);
     });
-    
-    it('要添加的用户不存在时应返回404错误', async () => {
-      // 设置项目ID和请求体
-      req.params.id = '123';
-      req.body = {
-        userId: '456',
-        role: 'member'
-      };
-      
-      // 模拟服务抛出错误
-      const error = new Error('用户不存在');
-      error.statusCode = 404;
-      serviceStub = sinon.stub(projectService, 'addProjectMember').rejects(error);
-      
-      // 调用控制器方法
-      await projectController.addProjectMember(req, res, next);
-      
-      // 验证结果
-      expect(next.calledOnce).to.be.true;
-      expect(next.args[0][0]).to.equal(error);
+  });
+
+  describe('removeProjectMember', () => {
+    it('应成功移除项目成员并返回200状态', async () => {
+      // 准备
+      req.params = { id: 'project123', userId: 'user456' };
+      req.user = { id: 'admin789' };
+      projectService.removeProjectMember.mockResolvedValue(true);
+
+      // 执行
+      await projectController.removeProjectMember(req, res, next);
+
+      // 验证
+      expect(projectService.removeProjectMember).toHaveBeenCalledWith('project123', 'user456', 'admin789');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ message: '成员已成功移除' });
+      expect(next).not.toHaveBeenCalled();
     });
-    
-    it('用户已是项目成员时应返回400错误', async () => {
-      // 设置项目ID和请求体
-      req.params.id = '123';
-      req.body = {
-        userId: '456',
-        role: 'member'
+
+    it('当项目不存在、成员不存在或无权限时，应返回404状态', async () => {
+      // 准备
+      req.params = { id: 'project123', userId: 'user456' };
+      req.user = { id: 'member789' };
+      projectService.removeProjectMember.mockResolvedValue(false);
+
+      // 执行
+      await projectController.removeProjectMember(req, res, next);
+
+      // 验证
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: '项目不存在、成员不存在或您没有权限移除成员' });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('当发生错误时，应将错误传递给下一个中间件', async () => {
+      // 准备
+      req.params = { id: 'project123', userId: 'user456' };
+      req.user = { id: 'admin789' };
+      const error = new Error('数据库错误');
+      projectService.removeProjectMember.mockRejectedValue(error);
+
+      // 执行
+      await projectController.removeProjectMember(req, res, next);
+
+      // 验证
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('addProjectMember', () => {
+    it('应成功添加项目成员并返回201状态', async () => {
+      // 准备
+      req.params = { id: 'project123' };
+      req.body = { userId: 'user456', role: 'developer' };
+      req.user = { id: 'admin789' };
+      
+      const mockResult = { 
+        id: 'member1', 
+        projectId: 'project123', 
+        userId: 'user456', 
+        role: 'developer' 
       };
-      
-      // 模拟服务抛出错误
-      const error = new Error('用户已是项目成员');
-      error.statusCode = 400;
-      serviceStub = sinon.stub(projectService, 'addProjectMember').rejects(error);
-      
-      // 调用控制器方法
+      projectService.addProjectMember.mockResolvedValue(mockResult);
+
+      // 执行
       await projectController.addProjectMember(req, res, next);
+
+      // 验证
+      expect(projectService.addProjectMember).toHaveBeenCalledWith(
+        'project123', 'user456', 'developer', 'admin789'
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith(mockResult);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('当用户ID或角色为空时，应返回400状态', async () => {
+      // 准备 - 缺少角色
+      req.params = { id: 'project123' };
+      req.body = { userId: 'user456' }; // 没有提供角色
+      req.user = { id: 'admin789' };
+
+      // 执行
+      await projectController.addProjectMember(req, res, next);
+
+      // 验证
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ message: '用户ID和角色不能为空' });
+      expect(projectService.addProjectMember).not.toHaveBeenCalled();
       
-      // 验证结果
-      expect(next.calledOnce).to.be.true;
-      expect(next.args[0][0]).to.equal(error);
+      // 准备 - 缺少用户ID
+      req.body = { role: 'developer' }; // 没有提供用户ID
+      jest.clearAllMocks();
+
+      // 执行
+      await projectController.addProjectMember(req, res, next);
+
+      // 验证
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ message: '用户ID和角色不能为空' });
+      expect(projectService.addProjectMember).not.toHaveBeenCalled();
+    });
+
+    it('当项目不存在、无权限或用户已存在于项目中时，应返回404状态', async () => {
+      // 准备
+      req.params = { id: 'project123' };
+      req.body = { userId: 'user456', role: 'developer' };
+      req.user = { id: 'member789' };
+      projectService.addProjectMember.mockResolvedValue(false);
+
+      // 执行
+      await projectController.addProjectMember(req, res, next);
+
+      // 验证
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ 
+        message: '项目不存在、您没有权限添加成员或用户已存在于项目中' 
+      });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('当发生错误时，应将错误传递给下一个中间件', async () => {
+      // 准备
+      req.params = { id: 'project123' };
+      req.body = { userId: 'user456', role: 'developer' };
+      req.user = { id: 'admin789' };
+      const error = new Error('数据库错误');
+      projectService.addProjectMember.mockRejectedValue(error);
+
+      // 执行
+      await projectController.addProjectMember(req, res, next);
+
+      // 验证
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
     });
   });
 }); 

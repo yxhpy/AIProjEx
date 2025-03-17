@@ -1,84 +1,59 @@
-const sinon = require('sinon');
-const { expect } = require('chai');
-const authMiddleware = require('../../../src/middlewares/authMiddleware');
+// 模拟authJwt模块
+jest.mock('../../../src/middlewares/authJwt', () => ({
+  verifyToken: jest.fn(),
+  isAdmin: jest.fn(),
+  isOwnerOrAdmin: jest.fn()
+}));
 
-describe('Auth 中间件测试', () => {
-  let sandbox;
+// 导入被测试的模块
+const authMiddleware = require('../../../src/middlewares/authMiddleware');
+const authJwt = require('../../../src/middlewares/authJwt');
+
+describe('认证中间件 (authMiddleware.js)', () => {
   let req, res, next;
-  let authJwtMock;
 
   beforeEach(() => {
-    // 创建sinon沙箱
-    sandbox = sinon.createSandbox();
+    // 创建请求、响应和next函数的模拟
+    req = { headers: { authorization: 'Bearer token' }, userId: 123 };
+    res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    next = jest.fn();
     
-    // 创建通用的请求、响应和next函数
-    req = {
-      headers: { authorization: 'Bearer token123' }
-    };
-    res = {
-      status: sandbox.stub().returnsThis(),
-      json: sandbox.stub().returnsThis()
-    };
-    next = sandbox.stub();
-    
-    // 模拟authJwt模块
-    authJwtMock = {
-      verifyToken: sandbox.stub(),
-      isAdmin: sandbox.stub(),
-      isOwnerOrAdmin: sandbox.stub()
-    };
-    
-    // 替换authMiddleware中导入的authJwt
-    sandbox.stub(authMiddleware, 'verifyToken').callsFake(authJwtMock.verifyToken);
-    sandbox.stub(authMiddleware, 'authenticate').callsFake(authJwtMock.verifyToken);
-    sandbox.stub(authMiddleware, 'isAdmin').callsFake(authJwtMock.isAdmin);
-    sandbox.stub(authMiddleware, 'isOwnerOrAdmin').callsFake(authJwtMock.isOwnerOrAdmin);
+    // 重置所有模拟
+    jest.clearAllMocks();
   });
 
-  afterEach(() => {
-    // 清理沙箱
-    sandbox.restore();
-  });
-
-  it('应该正确导出authenticate作为verifyToken的别名', () => {
-    // 使用authMiddleware.authenticate
+  it('应该导出authenticate作为verifyToken的别名', () => {
+    // 调用authenticate
     authMiddleware.authenticate(req, res, next);
     
     // 验证verifyToken被调用
-    expect(authMiddleware.authenticate.calledOnce).to.be.true;
-    expect(authMiddleware.authenticate.calledWith(req, res, next)).to.be.true;
+    expect(authJwt.verifyToken).toHaveBeenCalledWith(req, res, next);
   });
 
-  it('应该正确导出verifyToken', () => {
-    // 使用authMiddleware.verifyToken
+  it('应该导出原始的verifyToken函数', () => {
+    // 调用verifyToken
     authMiddleware.verifyToken(req, res, next);
     
     // 验证verifyToken被调用
-    expect(authMiddleware.verifyToken.calledOnce).to.be.true;
-    expect(authMiddleware.verifyToken.calledWith(req, res, next)).to.be.true;
+    expect(authJwt.verifyToken).toHaveBeenCalledWith(req, res, next);
   });
 
-  it('应该正确导出isAdmin', () => {
-    // 使用authMiddleware.isAdmin
+  it('应该导出isAdmin函数', () => {
+    // 调用isAdmin
     authMiddleware.isAdmin(req, res, next);
     
     // 验证isAdmin被调用
-    expect(authMiddleware.isAdmin.calledOnce).to.be.true;
-    expect(authMiddleware.isAdmin.calledWith(req, res, next)).to.be.true;
+    expect(authJwt.isAdmin).toHaveBeenCalledWith(req, res, next);
   });
 
-  it('应该正确导出isOwnerOrAdmin', () => {
-    // 模拟返回值
-    const middlewareFunction = (req, res, next) => {};
-    authMiddleware.isOwnerOrAdmin.returns(middlewareFunction);
+  it('应该导出isOwnerOrAdmin函数', () => {
+    // 创建测试参数
+    const getOwnerId = jest.fn();
     
-    // 使用authMiddleware.isOwnerOrAdmin
-    const getOwnerIdFunc = () => {};
-    const result = authMiddleware.isOwnerOrAdmin(getOwnerIdFunc);
+    // 调用isOwnerOrAdmin
+    const middleware = authMiddleware.isOwnerOrAdmin(getOwnerId);
     
-    // 验证isOwnerOrAdmin被调用并返回了结果
-    expect(authMiddleware.isOwnerOrAdmin.calledOnce).to.be.true;
-    expect(authMiddleware.isOwnerOrAdmin.calledWith(getOwnerIdFunc)).to.be.true;
-    expect(result).to.equal(middlewareFunction);
+    // 验证isOwnerOrAdmin被调用
+    expect(authJwt.isOwnerOrAdmin).toHaveBeenCalledWith(getOwnerId);
   });
 }); 

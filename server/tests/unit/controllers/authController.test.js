@@ -394,7 +394,7 @@ describe('Auth Controller', () => {
   });
 
   describe('updateCurrentUser', () => {
-    it.skip('应该成功更新用户信息', async () => {
+    it('应该成功更新用户信息', async () => {
       // 设置请求体和userId
       req.userId = 1;
       req.body = {
@@ -415,16 +415,125 @@ describe('Auth Controller', () => {
       };
       User.findByPk.mockResolvedValue(mockUser);
 
+      // 模拟 findOne 对于用户名和邮箱检查均返回 null (不存在)
+      User.findOne.mockResolvedValue(null);
+
       // 调用控制器方法
       await authController.updateCurrentUser(req, res, next);
 
       // 验证结果
       expect(User.findByPk).toHaveBeenCalledWith(1);
-      // 不验证save方法的调用，因为在测试环境中可能无法正确模拟
+      expect(mockUser.save).toHaveBeenCalled();
+      expect(mockUser.username).toBe('updateduser');
+      expect(mockUser.email).toBe('updated@example.com');
+      expect(mockUser.avatar_url).toBe('new-avatar.jpg');
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        message: '用户信息更新成功'
+      expect(res.json).toHaveBeenCalledWith({
+        message: '用户信息更新成功',
+        user: {
+          id: 1,
+          username: 'updateduser',
+          email: 'updated@example.com',
+          role: 'user',
+          avatarUrl: 'new-avatar.jpg',
+          updatedAt: '2023-01-02T00:00:00.000Z'
+        }
+      });
+    });
+
+    it('当用户名已存在时应返回409错误', async () => {
+      // 设置请求体和userId
+      req.userId = 1;
+      req.body = {
+        username: 'existinguser',
+        email: 'updated@example.com'
+      };
+
+      // 模拟用户存在
+      const mockUser = {
+        id: 1,
+        username: 'testuser',
+        email: 'test@example.com',
+        save: jest.fn()
+      };
+      User.findByPk.mockResolvedValue(mockUser);
+
+      // 模拟用户名已存在
+      User.findOne.mockResolvedValueOnce({
+        id: 2,
+        username: 'existinguser'
+      });
+
+      // 调用控制器方法
+      await authController.updateCurrentUser(req, res, next);
+
+      // 验证结果
+      expect(User.findByPk).toHaveBeenCalledWith(1);
+      expect(User.findOne).toHaveBeenCalledWith({ where: { username: 'existinguser' } });
+      expect(mockUser.save).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({
+        statusCode: 409,
+        message: '用户名已被使用'
       }));
+    });
+
+    it('当邮箱格式无效时应返回400错误', async () => {
+      // 设置请求体和userId
+      req.userId = 1;
+      req.body = {
+        email: 'invalid-email'
+      };
+
+      // 模拟用户存在
+      const mockUser = {
+        id: 1,
+        username: 'testuser',
+        email: 'test@example.com',
+        save: jest.fn()
+      };
+      User.findByPk.mockResolvedValue(mockUser);
+
+      // 调用控制器方法
+      await authController.updateCurrentUser(req, res, next);
+
+      // 验证结果
+      expect(User.findByPk).toHaveBeenCalledWith(1);
+      expect(mockUser.save).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ message: '邮箱格式无效' });
+    });
+
+    it('当邮箱已被注册时应返回400错误', async () => {
+      // 设置请求体和userId
+      req.userId = 1;
+      req.body = {
+        email: 'existing@example.com'
+      };
+
+      // 模拟用户存在
+      const mockUser = {
+        id: 1,
+        username: 'testuser',
+        email: 'test@example.com',
+        save: jest.fn()
+      };
+      User.findByPk.mockResolvedValue(mockUser);
+
+      // 模拟邮箱已存在
+      User.findOne.mockResolvedValueOnce({
+        id: 2,
+        email: 'existing@example.com'
+      });
+
+      // 调用控制器方法
+      await authController.updateCurrentUser(req, res, next);
+
+      // 验证结果
+      expect(User.findByPk).toHaveBeenCalledWith(1);
+      expect(User.findOne).toHaveBeenCalledWith({ where: { email: 'existing@example.com' } });
+      expect(mockUser.save).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ message: '邮箱已被注册' });
     });
 
     it('当用户不存在时应返回404错误', async () => {
@@ -450,30 +559,7 @@ describe('Auth Controller', () => {
       }));
     });
 
-    it('当数据库操作失败时应调用next并传递错误', async () => {
-      // 设置请求体
-      req.body = {
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'Password123'
-      };
-
-      // 模拟数据库错误
-      const dbError = new Error('数据库错误');
-      User.findOne.mockRejectedValue(dbError);
-
-      // 调用控制器方法
-      await authController.register(req, res, next);
-
-      // 验证结果
-      expect(User.findOne).toHaveBeenCalled();
-      expect(bcrypt.hash).not.toHaveBeenCalled();
-      expect(User.create).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalled();
-      expect(next).toHaveBeenCalledWith(dbError);
-    });
-
-    it.skip('当更新操作失败时应调用next并传递错误', async () => {
+    it('当更新操作失败时应调用next并传递错误', async () => {
       // 设置请求体和userId
       req.userId = 1;
       req.body = {
@@ -489,22 +575,157 @@ describe('Auth Controller', () => {
         username: 'testuser',
         email: 'test@example.com',
         avatar_url: 'avatar.jpg',
-        save: jest.fn()
+        save: jest.fn().mockRejectedValue(saveError)
       };
       
-      // 模拟save方法抛出错误
-      mockUser.save.mockImplementation(() => {
-        throw saveError;
-      });
-      
       User.findByPk.mockResolvedValue(mockUser);
+      User.findOne.mockResolvedValue(null);
 
       // 调用控制器方法
       await authController.updateCurrentUser(req, res, next);
 
       // 验证结果
       expect(User.findByPk).toHaveBeenCalledWith(1);
-      // 不验证save方法的调用，因为在测试环境中可能无法正确模拟
+      expect(mockUser.save).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(saveError);
+    });
+  });
+
+  describe('updatePassword', () => {
+    it('应该成功更新用户密码', async () => {
+      // 设置请求体和userId
+      req.userId = 1;
+      req.body = {
+        currentPassword: 'OldPassword123',
+        newPassword: 'NewPassword123'
+      };
+
+      // 模拟用户存在
+      const mockUser = {
+        id: 1,
+        validatePassword: jest.fn().mockResolvedValue(true),
+        save: jest.fn().mockResolvedValue(true)
+      };
+      User.findByPk.mockResolvedValue(mockUser);
+
+      // 调用控制器方法
+      await authController.updatePassword(req, res, next);
+
+      // 验证结果
+      expect(User.findByPk).toHaveBeenCalledWith(1);
+      expect(mockUser.validatePassword).toHaveBeenCalledWith('OldPassword123');
+      expect(mockUser.password_hash).toBe('NewPassword123');
+      expect(mockUser.save).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ message: '密码更新成功' });
+    });
+
+    it('当用户不存在时应返回404错误', async () => {
+      // 设置请求体和userId
+      req.userId = 999;
+      req.body = {
+        currentPassword: 'OldPassword123',
+        newPassword: 'NewPassword123'
+      };
+
+      // 模拟用户不存在
+      User.findByPk.mockResolvedValue(null);
+
+      // 调用控制器方法
+      await authController.updatePassword(req, res, next);
+
+      // 验证结果
+      expect(User.findByPk).toHaveBeenCalledWith(999);
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({
+        statusCode: 404,
+        message: '用户不存在'
+      }));
+    });
+
+    it('当当前密码不正确时应返回401错误', async () => {
+      // 设置请求体和userId
+      req.userId = 1;
+      req.body = {
+        currentPassword: 'WrongPassword123',
+        newPassword: 'NewPassword123'
+      };
+
+      // 模拟用户存在但密码验证失败
+      const mockUser = {
+        id: 1,
+        validatePassword: jest.fn().mockResolvedValue(false),
+        save: jest.fn()
+      };
+      User.findByPk.mockResolvedValue(mockUser);
+
+      // 调用控制器方法
+      await authController.updatePassword(req, res, next);
+
+      // 验证结果
+      expect(User.findByPk).toHaveBeenCalledWith(1);
+      expect(mockUser.validatePassword).toHaveBeenCalledWith('WrongPassword123');
+      expect(mockUser.save).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({
+        statusCode: 401,
+        message: '当前密码不正确'
+      }));
+    });
+
+    it('当新密码强度不够时应返回400错误', async () => {
+      // 设置请求体和userId
+      req.userId = 1;
+      req.body = {
+        currentPassword: 'OldPassword123',
+        newPassword: 'weak'
+      };
+
+      // 模拟用户存在
+      const mockUser = {
+        id: 1,
+        validatePassword: jest.fn().mockResolvedValue(true),
+        save: jest.fn()
+      };
+      User.findByPk.mockResolvedValue(mockUser);
+
+      // 调用控制器方法
+      await authController.updatePassword(req, res, next);
+
+      // 验证结果
+      expect(User.findByPk).toHaveBeenCalledWith(1);
+      expect(mockUser.validatePassword).toHaveBeenCalledWith('OldPassword123');
+      expect(mockUser.save).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ 
+        message: '新密码必须至少8个字符，包含数字、小写字母和大写字母' 
+      });
+    });
+
+    it('当更新密码时出现错误应调用next并传递错误', async () => {
+      // 设置请求体和userId
+      req.userId = 1;
+      req.body = {
+        currentPassword: 'OldPassword123',
+        newPassword: 'NewPassword123'
+      };
+
+      // 模拟用户存在但保存失败
+      const saveError = new Error('保存失败');
+      const mockUser = {
+        id: 1,
+        validatePassword: jest.fn().mockResolvedValue(true),
+        save: jest.fn().mockRejectedValue(saveError)
+      };
+      User.findByPk.mockResolvedValue(mockUser);
+
+      // 调用控制器方法
+      await authController.updatePassword(req, res, next);
+
+      // 验证结果
+      expect(User.findByPk).toHaveBeenCalledWith(1);
+      expect(mockUser.validatePassword).toHaveBeenCalledWith('OldPassword123');
+      expect(mockUser.password_hash).toBe('NewPassword123');
+      expect(mockUser.save).toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalled();
       expect(next).toHaveBeenCalledWith(saveError);
     });
