@@ -45,19 +45,27 @@ describe('日志工具测试', () => {
       // 创建模拟createLogger函数
       const mockCreateLogger = jest.fn().mockReturnValue(mockLoggerInstance);
       
+      // 存储printf回调函数
+      let printfCallback = null;
+      
       return {
         createLogger: mockCreateLogger,
         format: {
           combine: jest.fn(),
           timestamp: jest.fn(),
-          printf: jest.fn(),
+          printf: jest.fn((callback) => {
+            printfCallback = callback;
+            return 'formatted-string';
+          }),
           colorize: jest.fn(),
           json: jest.fn()
         },
         transports: {
           Console: mockConsoleTransport,
           File: mockFileTransport
-        }
+        },
+        // 暴露printf回调函数以便测试
+        _getPrintfCallback: () => printfCallback
       };
     });
   });
@@ -295,5 +303,50 @@ describe('日志工具测试', () => {
       logger.info(message, metadata);
       expect(logger.info).toHaveBeenCalledWith(message, metadata);
     });
+  });
+
+  it('自定义格式化函数应该正确格式化日志消息', () => {
+    jest.resetModules();
+    
+    // 模拟format.printf函数，捕获并执行回调
+    jest.mock('winston', () => {
+      const mockPrintf = jest.fn((callback) => {
+        // 直接测试回调函数
+        const result = callback({
+          level: 'info',
+          message: '测试消息',
+          timestamp: '2025-03-17 12:00:00'
+        });
+        
+        // 验证格式化结果
+        expect(result).toBe('2025-03-17 12:00:00 [info]: 测试消息');
+        
+        return 'formatted-string';
+      });
+      
+      return {
+        createLogger: jest.fn().mockReturnValue({
+          add: jest.fn()
+        }),
+        format: {
+          combine: jest.fn(),
+          timestamp: jest.fn(),
+          printf: mockPrintf,
+          colorize: jest.fn(),
+          json: jest.fn()
+        },
+        transports: {
+          Console: jest.fn(),
+          File: jest.fn()
+        }
+      };
+    }, { virtual: true });
+    
+    // 导入logger模块，这将触发printf的调用
+    require('../../../src/utils/logger');
+    
+    // 验证printf被调用
+    const winston = require('winston');
+    expect(winston.format.printf).toHaveBeenCalled();
   });
 }); 
