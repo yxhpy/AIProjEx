@@ -1,5 +1,6 @@
 const { Project, User, ProjectMember, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const logger = require('../utils/logger');
 
 /**
  * 获取项目列表
@@ -196,41 +197,55 @@ exports.deleteProject = async (projectId, userId) => {
 
 /**
  * 获取项目成员列表
- * @param {string} projectId - 项目ID
- * @param {string} userId - 当前用户ID
- * @returns {Array|null} - 成员列表或null
+ * @param {number} projectId - 项目ID
+ * @param {number} userId - 当前用户ID
+ * @returns {Promise<Array|null>} - 项目成员列表或null
  */
 exports.getProjectMembers = async (projectId, userId) => {
-  // 检查项目是否存在
-  const project = await Project.findByPk(projectId);
-  if (!project) return null;
-  
-  // 检查用户是否有权限查看成员列表
-  const isMember = await exports.isProjectMember(projectId, userId);
-  if (!isMember) return null;
-  
-  // 获取项目成员列表
-  const members = await ProjectMember.findAll({
-    where: { project_id: projectId }
-  });
-  
-  // 获取成员用户信息
-  const memberIds = members.map(member => member.user_id);
-  const users = await User.findAll({
-    where: { id: { [Op.in]: memberIds } },
-    attributes: ['id', 'username', 'email', 'avatar_url']
-  });
-  
-  // 合并成员和用户信息
-  const result = members.map(member => {
-    const user = users.find(u => u.id === member.user_id);
-    return {
-      ...member.toJSON(),
-      user: user ? user.toJSON() : null
-    };
-  });
-  
-  return result;
+  try {
+    // 检查项目是否存在
+    const project = await Project.findByPk(projectId);
+    if (!project) {
+      return null;
+    }
+
+    // 检查用户是否是项目成员
+    const isMember = await ProjectMember.findOne({
+      where: { project_id: projectId, user_id: userId }
+    });
+
+    if (!isMember) {
+      return null;
+    }
+
+    // 获取所有项目成员，包括用户详情
+    const members = await ProjectMember.findAll({
+      where: { project_id: projectId },
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'username', 'email', 'name', 'avatar']
+        }
+      ]
+    });
+
+    return members.map(member => {
+      // 处理测试环境和生产环境的数据结构差异
+      const user = member.dataValues?.User || member.User;
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        role: member.role,
+        joined_at: member.createdAt
+      };
+    });
+  } catch (error) {
+    logger.error('获取项目成员失败:', { error, projectId });
+    throw error;
+  }
 };
 
 /**
