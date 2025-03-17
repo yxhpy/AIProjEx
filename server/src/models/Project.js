@@ -10,7 +10,7 @@ module.exports = (sequelize) => {
       });
       
       Project.belongsToMany(models.User, {
-        through: models.ProjectMember,
+        through: 'ProjectMember',
         foreignKey: 'project_id',
         as: 'members'
       });

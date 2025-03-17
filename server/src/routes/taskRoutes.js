@@ -1,12 +1,12 @@
 const express = require('express');
 const { body } = require('express-validator');
 const taskController = require('../controllers/taskController');
-const { authMiddleware } = require('../middlewares/authMiddleware');
+const { authenticate } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
 // 所有任务路由都需要认证
-router.use(authMiddleware);
+router.use(authenticate);
 
 // 获取任务列表（按项目或需求筛选）
 router.get('/', taskController.getTasks);

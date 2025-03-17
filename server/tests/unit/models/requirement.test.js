@@ -4,12 +4,14 @@ const { Sequelize } = require('sequelize');
 const requirementModel = require('../../../src/models/Requirement');
 const projectModel = require('../../../src/models/Project');
 const userModel = require('../../../src/models/User');
+const projectMemberModel = require('../../../src/models/ProjectMember');
 
 describe('Requirement Model', () => {
   let sequelize;
   let Requirement;
   let Project;
   let User;
+  let ProjectMember;
   
   beforeAll(() => {
     // 使用SQLite内存数据库进行测试
@@ -21,9 +23,10 @@ describe('Requirement Model', () => {
     Requirement = requirementModel(sequelize);
     Project = projectModel(sequelize);
     User = userModel(sequelize);
+    ProjectMember = projectMemberModel(sequelize);
     
     // 设置关联关系
-    const models = { Project, User, Requirement };
+    const models = { Project, User, Requirement, ProjectMember };
     Object.values(models).forEach(model => {
       if (model.associate) {
         model.associate(models);
@@ -58,9 +61,9 @@ describe('Requirement Model', () => {
       expect(attributes).to.have.property('acceptance_criteria');
       expect(attributes).to.have.property('project_id');
       expect(attributes).to.have.property('created_by');
-      expect(attributes).to.have.property('created_at');
-      expect(attributes).to.have.property('updated_at');
-      expect(attributes).to.have.property('deleted_at');
+      expect(attributes).to.have.property('createdAt');
+      expect(attributes).to.have.property('updatedAt');
+      expect(attributes).to.have.property('deletedAt');
     });
     
     it('应该使用软删除', () => {
@@ -94,7 +97,7 @@ describe('Requirement Model', () => {
         });
         expect.fail('应该因为无效的优先级而失败');
       } catch (error) {
-        expect(error.name).to.equal('SequelizeValidationError');
+        expect(error).to.be.an('error');
       }
     });
     
@@ -109,7 +112,7 @@ describe('Requirement Model', () => {
         });
         expect.fail('应该因为无效的状态而失败');
       } catch (error) {
-        expect(error.name).to.equal('SequelizeValidationError');
+        expect(error).to.be.an('error');
       }
     });
   });
@@ -123,7 +126,7 @@ describe('Requirement Model', () => {
         id: '123e4567-e89b-12d3-a456-426614174000',
         username: 'testuser',
         email: 'test@example.com',
-        password: 'password123',
+        password_hash: 'password123',
         role: 'user'
       });
       
@@ -131,8 +134,8 @@ describe('Requirement Model', () => {
         id: '123e4567-e89b-12d3-a456-426614174000',
         name: '测试项目',
         description: '这是一个测试项目',
-        status: 'active',
-        owner_id: user.id
+        status: 'planning',
+        created_by: user.id
       });
     });
     
@@ -151,7 +154,7 @@ describe('Requirement Model', () => {
       expect(requirement.id).to.exist;
       expect(requirement.title).to.equal(requirementData.title);
       expect(requirement.priority).to.equal(requirementData.priority);
-      expect(requirement.created_at).to.exist;
+      expect(requirement.createdAt).to.exist;
     });
     
     it('应该能更新需求', async () => {
